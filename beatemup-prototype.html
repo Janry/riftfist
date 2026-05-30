@@ -97,6 +97,42 @@ const HERO_SKINS = {
            "....EPPPPE..EPPPPE......",   // ноги
            "....EPppPE..EPppPE......",
            "....EOOOOE..EOOOOE......",   // взуття
+           "...EOOOOOE..EOOOOOE....." ],
+      /* px2 — кадр із заплющеними очима (права версія референса): самовдоволений
+         примружений вираз. Рушій періодично підміняє px на px2 (drawHero). */
+      px2:[".....E....E.E....E......",
+           "....EHE..EHEHE..EHE.....",
+           "...EHHHE.EHHEHHE.EHHHE..",
+           "..EHHHHHHHHHHHHHHHHHHE..",
+           ".EHHHHHHHHHHHHHHHHHHHHE.",
+           ".EHHHHHHHHHHHHHHHHHHHHE.",
+           "EHHHHHHHHHHHHHHHHHHHHHHE",
+           "EdHHHHHHHHHHHHHHHHHHHHdE",
+           "EHHHHSSSSSSSSSSSSSSHHHHE",
+           "EHHHSSSSSSSSSSSSSSSSHHHE",
+           ".EHHSSSSSSSSSSSSSSSSHHE.",
+           ".EHSBBBBBBBBBBBBBBBBSHE.",   // унібров
+           ".EHSSSSSSSSSSSSSSSSSSHE.",
+           ".EHSSBBBBBSSSSBBBBBSSHE.",   // заплющені очі (лінії)
+           ".EHSSSSSSSSSSSSSSSSSSHE.",
+           ".EHSSSSSSSSssSSSSSSSSHE.",   // ніс
+           ".EHssSSSSKKKKKKSSSSssHE.",   // самовдоволена усмішка + щетина
+           "..EsSSSSsKKKKsSSSSsE....",
+           "...EsSSSSSSSSSSSSSSsE...",
+           "..ECCCcTTTTTTTTcCCCE....",
+           ".ECCCCccTTTTTTTccCCCCE..",
+           "ECCCCCcTTTTTTTTTcCCCCCE.",
+           "ECCCCcccTTTTTTTcccCCCCE.",
+           ".ECCCE.CcTTTTTTcC.ECCCE.",
+           ".ECCCE.CYYYYYYYYC.ECCCE.",
+           "..ECCE.SccPPPPccS.ECCE..",
+           "..ECCccPPPPPPPPccCCE....",
+           "...EcCPPPPPPPPPPCcE.....",
+           "....EPPPPPPPPPPPPE......",
+           "....EPPPPpPPpPPPPE......",
+           "....EPPPPE..EPPPPE......",
+           "....EPppPE..EPppPE......",
+           "....EOOOOE..EOOOOE......",
            "...EOOOOOE..EOOOOOE....." ] } },
   doc: { name:"DOC", body:"#5fd0c4", accent:"#bff7ef",
     sprite:{ w:16, h:24,
@@ -441,7 +477,10 @@ function drawSpritePixels(spr, footX, footY, s, face, tint){
       ctx.fillStyle=col; ctx.fillRect(x0,y0,x1-x0,y1-y0); } }
 }
 function drawHero(p, isAtk){
-  const sk=curSkin(), spr=sk.sprite, h=54, zz=p.z||0, by=p.y-zz;
+  const sk=curSkin(), base=sk.sprite, h=54, zz=p.z||0, by=p.y-zz;
+  // вираз обличчя: дефолт — відкриті очі (px); періодично кліпає в заплющені (px2)
+  const blink = base.px2 && (tick%180)<30;               // ~раз на 3 с примружується на ~0.5 с
+  const spr = blink ? {w:base.w,h:base.h,pal:base.pal,px:base.px2} : base;
   const s=h*2.0/spr.h;                                   // крупніший герой: висота на екрані ≈ h*2 (~108px), однакова для всіх шкір
   drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280));
   const px=Math.max(1,Math.round(s));                    // 1 спрайт-піксель на екрані — щоб зсуви були піксельно-чисті
