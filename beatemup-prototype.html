@@ -36,8 +36,11 @@
 const THEME = {
   hero:    { name:"DOC", body:"#5fd0c4", accent:"#bff7ef" },
   enemies: {                                  // косметика за ключем архетипу
-    grunt: { name:"GROMBLE", body:"#c2607f", accent:"#ffd2e0" },
-    boss:  { name:"GROMBLE", body:"#a83f63", accent:"#ffd2e0" }
+    grunt:  { name:"GROMBLE",  body:"#c2607f", accent:"#ffd2e0" },
+    rusher: { name:"SKITTER",  body:"#d9824f", accent:"#ffd9b0" },
+    brute:  { name:"BRUTOID",  body:"#8c6fae", accent:"#e6d6ff" },
+    ranged: { name:"SPITTER",  body:"#7fae5f", accent:"#dff0c8" },
+    boss:   { name:"GROMBLE",  body:"#a83f63", accent:"#ffd2e0" }
   },
   bg:["#161a2b","#10131f"]
 };
@@ -77,15 +80,25 @@ const ATTACKS={
 
 /* ---------- ENEMIES (архетипи, дані) ---------- */
 /* theme — ключ у THEME.enemies (косметика); решта — механіка.
+   behavior — який AI: 'bruiser' (підбіг-замах-удар) | 'ranged' (тримає дистанцію, кидає снаряд).
    speed = speedMin + rand*speedRnd. kbResist<1 = стійкість до відкиду.
-   knockdown:false = не валиться з ніг (бос). */
+   knockdown:false = не валиться з ніг (бос). Поля shotSpeed/shotDmg/preferDist/fleeDist — лише для ranged. */
 const ENEMIES = {
-  grunt:{ theme:'grunt', boss:false, h:48, hp:30,  speedMin:1.1,  speedRnd:0.5,
-          approachDist:48, reach:54, windup:16, recover:24, coolAfter:30,
-          dmg:10, kbToPlayer:6, shake:5, kbResist:1,   knockdown:true  },
-  boss: { theme:'boss',  boss:true,  h:72, hp:180, speedMin:0.85, speedRnd:0,
-          approachDist:48, reach:82, windup:22, recover:28, coolAfter:20,
-          dmg:18, kbToPlayer:9, shake:8, kbResist:0.3, knockdown:false }
+  grunt: { theme:'grunt',  boss:false, behavior:'bruiser', h:48, hp:30,  speedMin:1.1,  speedRnd:0.5,
+           approachDist:48, reach:54, windup:16, recover:24, coolAfter:30,
+           dmg:10, kbToPlayer:6,  shake:5, kbResist:1,    knockdown:true  },
+  rusher:{ theme:'rusher', boss:false, behavior:'bruiser', h:44, hp:18,  speedMin:1.9,  speedRnd:0.4,
+           approachDist:40, reach:46, windup:10, recover:16, coolAfter:14,
+           dmg:7,  kbToPlayer:5,  shake:4, kbResist:1,    knockdown:true  },
+  brute: { theme:'brute',  boss:false, behavior:'bruiser', h:64, hp:70,  speedMin:0.7,  speedRnd:0,
+           approachDist:54, reach:60, windup:28, recover:30, coolAfter:34,
+           dmg:16, kbToPlayer:11, shake:7, kbResist:0.45, knockdown:true  },
+  ranged:{ theme:'ranged', boss:false, behavior:'ranged',  h:48, hp:22,  speedMin:1.15, speedRnd:0.25,
+           preferDist:230, fleeDist:130, shotWindup:26, recover:20, coolAfter:46,
+           shotSpeed:6.5, shotDmg:9, shotKb:7, shake:4, kbResist:1, knockdown:true },
+  boss:  { theme:'boss',   boss:true,  behavior:'bruiser', h:72, hp:180, speedMin:0.85, speedRnd:0,
+           approachDist:48, reach:82, windup:22, recover:28, coolAfter:20,
+           dmg:18, kbToPlayer:9,  shake:8, kbResist:0.3,  knockdown:false }
 };
 
 /* ============================================================
@@ -220,11 +233,20 @@ function hitEnemy(en,a,dir){
   if(a.down && A.knockdown){ en.state='down'; en.t=0; en.vx=dir*(a.kb+BALANCE.enemy.downKbBonus); }   // збиває з ніг
   else { en.state='hurt'; en.t=0; }
 }
+function hurtPlayer(dmg,kb,dir,shake){     // удар по гравцю (мілі або снаряд); пропускає, якщо iframe/hurt/високий стрибок
+  if(player.iframe>0 || player.state==='hurt' || player.z>=BALANCE.world.jumpInvulnZ) return false;
+  player.hp-=dmg; player.state='hurt'; player.t=0; player.iframe=BALANCE.player.hurtIframe; player.vx=dir*kb; player.vy=0;
+  screenShake=Math.max(screenShake,shake); combo=0; comboTimer=0; return true;
+}
 
 function updateProjectiles(){
   for(const p of projectiles){ if(p.dead) continue; p.x+=p.vx; p.spin+=BALANCE.weapon.spin;
     if(p.x<-30||p.x>W+30){ p.dead=true; continue; }
-    for(const en of enemies){ if(en.dead) continue;
+    if(p.foe){                                               // ворожий снаряд — б'є гравця
+      if(Math.abs(player.x-p.x)<BALANCE.weapon.projHit.x && Math.abs(player.y-p.y)<BALANCE.weapon.projHit.y
+         && hurtPlayer(p.dmg,p.kb,p.face,BALANCE.feel.shakeBase+p.kb*BALANCE.feel.shakeKbMul)) p.dead=true;
+      continue; }
+    for(const en of enemies){ if(en.dead) continue;          // гравцева зброя — б'є ворогів
       if(Math.abs(en.x-p.x)<BALANCE.weapon.projHit.x && Math.abs(en.y-p.y)<BALANCE.weapon.projHit.y){ hitEnemy(en,{dmg:p.dmg,kb:p.kb,stop:BALANCE.weapon.throwStop,down:true},p.face); p.dead=true; break; } } }
   projectiles=projectiles.filter(p=>!p.dead);
 }
@@ -236,10 +258,15 @@ function spawnEnemy(typeKey){ const A=ENEMIES[typeKey], f=FIELD();
     x:Math.random()<0.5?-20:W+20, y:f.top+Math.random()*(f.bottom-f.top),
     z:0,vx:0,vy:0, hp:A.hp, hpMax:A.hp, state:'approach', t:0, dead:false, deadT:0,
     flash:0, face:1, speed:A.speedMin+Math.random()*A.speedRnd, cool:Math.random()*40 }); }
+function pickEnemyType(wave){ const r=Math.random();   // прогресивний мікс: різноманітність росте з хвилями
+  if(wave>=4 && r<0.18) return 'ranged';
+  if(wave>=3 && r<0.38) return 'brute';
+  if(wave>=2 && r<0.62) return 'rusher';
+  return 'grunt'; }
 function spawnWave(){ wave++; const boss=(wave%BALANCE.waves.bossEvery===0);
   if(boss) spawnEnemy('boss');
   const n=boss?1:Math.min(BALANCE.waves.base+wave,BALANCE.waves.max);
-  for(let i=0;i<n;i++) spawnEnemy('grunt'); }
+  for(let i=0;i<n;i++) spawnEnemy(boss?'grunt':pickEnemyType(wave)); }
 function updateEnemy(en){
   const A=ENEMIES[en.type];
   if(en.dead){ en.deadT++; return; } if(en.flash>0) en.flash--; en.t++;
@@ -247,17 +274,31 @@ function updateEnemy(en){
   if(en.state==='down'){ en.x+=en.vx; en.vx*=0.85; if(en.t>BALANCE.enemy.downDur){ en.state='getup'; en.t=0; } clampField(en); return; }
   if(en.state==='getup'){ if(en.t>BALANCE.enemy.getupDur){ en.state='approach'; en.cool=BALANCE.enemy.getupCool; } return; }
   if(en.state==='hurt'){ en.x+=en.vx; en.y+=en.vy; en.vx*=0.82; en.vy*=0.82; if(en.t>BALANCE.enemy.hurtDur) en.state='approach'; clampField(en); return; }
+  if(A.behavior==='ranged') updateRanged(en,A,dx,dy); else updateBruiser(en,A,dx,dy);   // диспетч по архетипу
+}
+function updateBruiser(en,A,dx,dy){                          // підбіг → замах → удар → відновлення
   if(en.state==='windup'){
     if(en.t>A.windup){ const adx=Math.abs(dx), ady=Math.abs(dy);
-      if(adx<A.reach && ady<BALANCE.combat.hitDepth && player.z<BALANCE.world.jumpInvulnZ && player.iframe===0 && player.state!=='hurt'){
-        player.hp-=A.dmg; player.state='hurt'; player.t=0; player.iframe=BALANCE.player.hurtIframe; player.vx=en.face*A.kbToPlayer; player.vy=0;
-        screenShake=Math.max(screenShake,A.shake); combo=0; comboTimer=0; }
+      if(adx<A.reach && ady<BALANCE.combat.hitDepth) hurtPlayer(A.dmg,A.kbToPlayer,en.face,A.shake);
       en.state='recover'; en.t=0; } return; }
   if(en.state==='recover'){ if(en.t>A.recover){ en.state='approach'; en.cool=A.coolAfter; } return; }
   const dist=Math.hypot(dx,dy); if(en.cool>0) en.cool--;
   if(dist>A.approachDist){ const len=dist||1; en.x+=dx/len*en.speed; en.y+=dy/len*en.speed*BALANCE.world.depthFactor; }
   else if(en.cool===0){ en.state='windup'; en.t=0; } clampField(en);
 }
+function updateRanged(en,A,dx,dy){                           // тримає дистанцію, цілиться, кидає снаряд
+  const dist=Math.hypot(dx,dy); if(en.cool>0) en.cool--;
+  if(en.state==='aim'){ if(en.t>A.shotWindup){ enemyShoot(en,A); en.state='recover'; en.t=0; } return; }
+  if(en.state==='recover'){ if(en.t>A.recover){ en.state='approach'; en.cool=A.coolAfter; } return; }
+  let mvx=0, mvy=0; const len=dist||1;
+  if(dist<A.fleeDist){ mvx=-dx/len; mvy=-dy/len; }            // надто близько — відступ
+  else if(dist>A.preferDist){ mvx=dx/len; mvy=dy/len; }       // далеко — підійти
+  else if(en.cool===0){ en.state='aim'; en.t=0; return; }     // у вікні — приціл
+  en.x+=mvx*en.speed; en.y+=mvy*en.speed*BALANCE.world.depthFactor; clampField(en);
+}
+function enemyShoot(en,A){ const dir=en.face;
+  projectiles.push({ x:en.x+dir*14, y:en.y, vx:dir*A.shotSpeed, face:dir, foe:true,
+    dmg:A.shotDmg, kb:A.shotKb, spin:0, dead:false }); }
 function cleanupEnemies(){ enemies=enemies.filter(e=>!(e.dead&&e.deadT>30));
   if(enemies.length===0){ if(weapons.length<BALANCE.weapon.maxOnField && Math.random()<BALANCE.weapon.dropChance) spawnWeapon(); spawnWave(); } }
 
@@ -331,11 +372,19 @@ function render(){
     } else { if(o.e.dead && o.e.deadT>30) continue;
       const A=ENEMIES[o.e.type], th=THEME.enemies[A.theme];
       ctx.save(); if(o.e.dead) ctx.globalAlpha=Math.max(0,1-o.e.deadT/30);
-      drawFighter(o.e,th.body,th.accent,A.h,false,null); ctx.restore(); } }
-  for(const p of projectiles){ const w=WEAPONS[p.type];
-    ctx.save(); ctx.translate(p.x,p.y-30); ctx.rotate(p.spin);
-    ctx.strokeStyle=w.color; ctx.lineWidth=5; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(-14,0); ctx.lineTo(14,0); ctx.stroke(); ctx.restore(); }
+      drawFighter(o.e,th.body,th.accent,A.h,false,null);
+      if(A.behavior==='ranged' && o.e.state==='aim'){        // телеграф пострілу — росте на руці
+        const by=o.e.y-(o.e.z||0), k=Math.min(1,o.e.t/A.shotWindup);
+        ctx.fillStyle=th.accent; ctx.beginPath(); ctx.arc(o.e.x+o.e.face*16,by-A.h*0.7,3+5*k,0,7); ctx.fill(); }
+      ctx.restore(); } }
+  for(const p of projectiles){ ctx.save();
+    if(p.foe){ ctx.translate(p.x,p.y-30);                    // ворожий снаряд — світлий згусток
+      ctx.fillStyle='#ff9a5f'; ctx.globalAlpha=.9; ctx.beginPath(); ctx.arc(0,0,6,0,7); ctx.fill();
+      ctx.globalAlpha=.28; ctx.beginPath(); ctx.arc(0,0,11,0,7); ctx.fill(); }
+    else { const w=WEAPONS[p.type]; ctx.translate(p.x,p.y-30); ctx.rotate(p.spin);
+      ctx.strokeStyle=w.color; ctx.lineWidth=5; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(-14,0); ctx.lineTo(14,0); ctx.stroke(); }
+    ctx.restore(); }
   ctx.restore();
 
   // HUD
