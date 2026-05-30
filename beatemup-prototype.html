@@ -314,6 +314,11 @@ function keyOutBackground(ox,w,h){ const id=ox.getImageData(0,0,w,h), d=id.data;
     if(x+1<w)st.push(p+1); if(x>0)st.push(p-1); if(y+1<h)st.push(p+w); if(y>0)st.push(p-w); }
   ox.putImageData(id,0,0);
 }
+function clearBgColor(ox,w,h,tol){    // прибрати ЗАМКНЕНІ кишені фону (між ногами), яких не дістала заливка від країв; тісний допуск → халат не чіпає
+  const id=ox.getImageData(0,0,w,h), d=id.data, br=d[0],bg=d[1],bb=d[2];
+  for(let i=0;i<d.length;i+=4){ if(d[i+3] && Math.abs(d[i]-br)<=tol && Math.abs(d[i+1]-bg)<=tol && Math.abs(d[i+2]-bb)<=tol) d[i+3]=0; }
+  ox.putImageData(id,0,0);
+}
 function mkCanvas(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
 function finishSheet(canvas, frames){                 // frames рівних кадрів по горизонталі; тісний bbox у кожному + білий силует для флешу
   const w=canvas.width, h=canvas.height, id=canvas.getContext('2d').getImageData(0,0,w,h).data, cw=w/frames, box=[];
@@ -353,15 +358,18 @@ function loadAtkSheet(key){ const sk=HERO_SKINS[key]; if(!sk||!sk.atkSrc){ heroA
   const im=new Image();
   im.onload=function(){ try{ const oc=mkCanvas(im.width,im.height), ox=oc.getContext('2d');
     ox.drawImage(im,0,0); keyOutBackground(ox, im.width, im.height);
-    heroAtk[key]=finishSheet(oc, sk.atkFrames||1); }catch(e){ heroAtk[key]=null; } };
+    clearBgColor(ox, im.width, im.height, 8);                 // прибрати сіру кишеню між ногами та запечену тінь
+    const sh=finishSheet(oc, sk.atkFrames||1);
+    const n=sh.frames; sh.refH=Math.max(sh.box[0].h, sh.box[Math.min(1,n-1)].h, sh.box[Math.min(2,n-1)].h, sh.box[Math.min(3,n-1)].h);  // стояча висота (кадри-стійки) → спільний масштаб як в idle
+    heroAtk[key]=sh; }catch(e){ heroAtk[key]=null; } };
   im.onerror=function(){ heroAtk[key]=null; };
   im.src=sk.atkSrc;
 }
 for(const k in HERO_SKINS) loadAtkSheet(k);
 /* малює кадр аркуша: тісний bbox, ноги в footY, центр по x, дзеркалення по face, білий флеш при влучанні */
-function drawHeroFrame(sheet, fi, p, drawH, lunge, yoff){
+function drawHeroFrame(sheet, fi, p, drawH, lunge, yoff, refH){
   const bb=sheet.box[Math.max(0,Math.min(sheet.frames-1,fi))];
-  const sc=drawH/bb.h, dw=bb.w*sc, dh=bb.h*sc, zz=p.z||0, by=p.y-zz;
+  const sc=drawH/(refH||bb.h), dw=bb.w*sc, dh=bb.h*sc, zz=p.z||0, by=p.y-zz;   // refH (спільна стояча висота) → пози не «роздуваються»
   drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280));
   const dx=Math.round(p.x+lunge-dw/2), dy=Math.round(by+1+(yoff||0)-dh);
   ctx.save(); ctx.imageSmoothingEnabled=false;
@@ -566,7 +574,7 @@ function drawHero(p, isAtk){
       const pr=Math.min(0.999,(p.t||0)/((p.atk&&p.atk.dur)||16));
       const fi=(p.atkName==='sp'||p.atkName==='wpn') ? 4+Math.min(2,Math.floor(pr*3))   // 4 замах → 5 кидок зілля → 6 фляга
                                                      : (pr<0.5?1:2);                    // 1 джеб → 2 прямий
-      drawHeroFrame(atk, fi, p, dH, p.face*12, 0); return;
+      drawHeroFrame(atk, fi, p, dH, p.face*12, 0, atk.refH); return;   // спільний масштаб → той самий розмір, що в idle
     }
     let bob=0; if(p.state==='walk') bob=-(Math.floor(tick/5)%2)*3; else if(p.state==='idle') bob=-(Math.floor(tick/28)%2)*2;
     const fi=(blink && sheet.frames>1)?1:0;               // 0=відкриті очі, 1=заплющені
