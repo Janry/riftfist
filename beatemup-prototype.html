@@ -59,35 +59,41 @@ const THEME = {
    sprite: { w,h — нативна сітка в пікселях; pal — символ→колір ('.'/відсутній = прозоро);
    px — рядки сітки, по w символів. Рушій малює масштабовані пікселі (drawSpritePixels). */
 const HERO_SKINS = {
-  rick: { name:"RIQ", body:"#cfe0e8", accent:"#a9cad8",
-    sprite:{ w:16, h:24,
-      pal:{ '.':null, H:'#a9cad8', h:'#6f93a3', S:'#edcaa0', s:'#c9a274', B:'#5d7d8b',
-            E:'#1d2128', C:'#eef2f4', c:'#c3cfd6', T:'#7fb3bb', P:'#9c7a52', p:'#785b3b',
-            O:'#2b303a', K:'#8a4f48' },
-      px:[ "....HHHHHHHH....",   // дикий чуб
-           "...HHHHHHHHHH...",
-           "..HHHHhHHHhHHH..",
-           "..HHHHHHHHHHHH..",
-           "..HhHSSSSSShHh..",
-           "...HSSSSSSSSH...",
-           "...SSBBBBBBSS...",   // унібров
-           "...SSEESSEESS...",   // очі
-           "...SSSSSSSSSS...",
-           "....SSKKKKSS....",   // рот
-           "....sSSSSSSs....",
-           ".....cTTTTc.....",   // комір
-           "...CCcTTTTcCC...",   // плечі (халат + сорочка)
-           "..CCCCTTTTCCCC..",
-           "..sCCCTTTTCCCs..",
-           "..SCCCCTTCCCCS..",   // кисті по боках
-           "...CCCCCCCCCC...",   // халат
-           "...CCcCCCCcCC...",
-           "...CCCPPPPCCC...",   // поділ халата + штани
-           "....CPPPPPPC....",
-           "....PPPppPPP....",
-           "....PPp..pPP....",   // ноги
-           "....Pp....pP....",
-           "....OO....OO...." ] } },
+  rick: { name:"RIQ", body:"#cfe0e8", accent:"#aecfdc",
+    sprite:{ w:20, h:30,
+      pal:{ '.':null, H:'#aecfdc', h:'#88a8b7', d:'#5f8190', S:'#f0cda3', s:'#cda079',
+            B:'#5f8190', E:'#20242c', W:'#eef3f5', K:'#7c4a44', C:'#f1f5f7', c:'#c2ced5',
+            T:'#6fa6b0', t:'#4f868f', P:'#9c7a52', p:'#6f5436', O:'#23282f' },
+      px:[ ".....H..H..H..H.....",   // дикий чуб
+           "....HHHHHHHHHHHH....",
+           "...HHHHHHHHHHHHHH...",
+           "..HHHHHHHHHHHHHHHH..",
+           "..HHhHHHHHHHHHhHHH..",
+           "..dHHHhHHHHHHhHHHd..",
+           ".dHHHHSSSSSSSSHHHHd.",   // лоб
+           ".dHHHHSBBBBBBSHHHHd.",   // унібров
+           ".dHHHHWEWSSWEWHHHHd.",   // очі
+           "..hHHSSSSSSSSSSHHh..",
+           "...HSSSSssssSSSSH...",   // ніс
+           "...HSSSSSSSSSSSSH...",
+           "....SSSSKKKKSSSS....",   // рот
+           ".....sSSSSSSSSs.....",
+           "......sSSSSSSs......",   // підборіддя
+           ".....CCcSSSScCC.....",   // шия + комір
+           "....CCCcTTTTcCCC....",   // плечі + сорочка
+           "...CCCCcTTttCcCCC...",
+           "..sCCCCCTTTTCCCCCs..",   // руки
+           "..SCCCCCCTTCCCCCCS..",   // кисті
+           "...CCCCCCTTCCCCCC...",
+           "...CCCCcCTTCcCCCC...",
+           "...CCCCCCCCCCCCCC...",
+           "....CCCCPPPPCCCC....",   // поділ + штани
+           ".....CPPPPPPPPC.....",
+           "....PPPPPPPPPPPP....",
+           ".....PPPP..PPPP.....",   // ноги
+           ".....PPpp..ppPP.....",
+           ".....OOOO..OOOO.....",   // взуття
+           ".....OOOO..OOOO....." ] } },
   doc: { name:"DOC", body:"#5fd0c4", accent:"#bff7ef",
     sprite:{ w:16, h:24,
       pal:{ '.':null, H:'#34505c', h:'#22343d', S:'#e8c39a', s:'#c39e75', G:'#2a3a44',
@@ -432,7 +438,7 @@ function drawSpritePixels(spr, footX, footY, s, face, tint){
 }
 function drawHero(p, isAtk){
   const sk=curSkin(), spr=sk.sprite, h=54, zz=p.z||0, by=p.y-zz;
-  const s=h*1.46/spr.h;                                  // ~78px заввишки на екрані
+  const s=h*1.7/spr.h;                                   // висота на екрані ≈ h*1.7 (~92px), однакова для всіх шкір
   drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280));
   const bob = p.state==='walk' ? -(Math.floor(tick/6)%2)*Math.round(s*0.5) : 0;  // 2-кадровий «крок»
   const lunge = isAtk ? p.face*s*1.5 : 0;                // випад уперед на ударі
