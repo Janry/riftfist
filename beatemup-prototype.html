@@ -440,17 +440,20 @@ function drawSpritePixels(spr, footX, footY, s, face, tint){
 }
 function drawHero(p, isAtk){
   const sk=curSkin(), spr=sk.sprite, h=54, zz=p.z||0, by=p.y-zz;
-  const s=h*1.7/spr.h;                                   // висота на екрані ≈ h*1.7 (~92px), однакова для всіх шкір
+  const s=h*2.0/spr.h;                                   // крупніший герой: висота на екрані ≈ h*2 (~108px), однакова для всіх шкір
   drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280));
-  const bob = p.state==='walk' ? -(Math.floor(tick/6)%2)*Math.round(s*0.5) : 0;  // 2-кадровий «крок»
-  const lunge = isAtk ? p.face*s*1.5 : 0;                // випад уперед на ударі
+  const px=Math.max(1,Math.round(s));                    // 1 спрайт-піксель на екрані — щоб зсуви були піксельно-чисті
+  let bob=0;                                             // узагальнена анімація (не залежить від конкретної шкіри/пікселів)
+  if(p.state==='walk')      bob=-(Math.floor(tick/5)%2)*px;       // 2-фазний крок
+  else if(p.state==='idle') bob=-(Math.floor(tick/28)%2)*px;      // повільне «дихання»
+  const lunge = isAtk ? p.face*s*1.8 : 0;                // випад уперед на ударі
   const footX=p.x+lunge, footY=by+bob+1;
   drawSpritePixels(spr, footX, footY, s, p.face, null);
   if(p.flash>0){ ctx.save(); ctx.globalAlpha=Math.min(1,p.flash/6);
     drawSpritePixels(spr, footX, footY, s, p.face, '#fff'); ctx.restore(); }
-  if(isAtk){ const reach=(p.atk&&p.atk.reach)||44, fy=footY-spr.h*s*0.52;  // кулак (без окремого кадру)
-    const fx=p.x+p.face*reach*0.62; ctx.fillStyle=sk.accent;
-    ctx.fillRect(Math.round(p.face>0?fx:fx-s*3), Math.round(fy), Math.round(s*3), Math.round(s*3)); }
+  if(isAtk){ const reach=(p.atk&&p.atk.reach)||44, fy=footY-spr.h*s*0.5;  // кулак-випад (узагальнено, без окремого кадру)
+    const fx=p.x+p.face*reach*0.7; ctx.fillStyle=sk.accent;
+    ctx.fillRect(Math.round(p.face>0?fx:fx-s*3.2), Math.round(fy), Math.round(s*3.2), Math.round(s*2.6)); }
 }
 function drawWeaponInHand(p){
   const swinging=p.state==='attack' && p.atkName==='wpn', by=p.y-(p.z||0), w=WEAPONS[p.weapon.type];
