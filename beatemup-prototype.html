@@ -20,15 +20,77 @@
 <div id="hint">рух ліворуч · УДАР/СТРИБ/СПЕЦ праворуч · пройди над зброєю=підбір · озброєний СПЕЦ=кидок · сильний удар збиває з ніг</div>
 <script>
 /* ============================================================
-   BEAT 'EM UP — прототип ядра  (v4: + knockdown + бос; портал прибрано)
-   THEME = data-шар (IP сюди). ENGINE = механіка.
+   BEAT 'EM UP — прототип ядра  (v5: баланс винесено в data-шар)
+   ------------------------------------------------------------
+   DATA LAYER (нижче) — все, що "наповнюється":
+     THEME   = IP-залежна косметика (імена/кольори) — свапабельна.
+     BALANCE = чисельні ручки відчуття/балансу (НЕ вшивати в код).
+     WEAPONS = таблиця зброї (дані).
+     ATTACKS = таблиця атак гравця (дані).
+     ENEMIES = архетипи ворогів (дані, не код) — звідси росте ростер.
+   ENGINE (далі) — механіка; читає числа з DATA LAYER, своїх не тримає.
+   Рендер-геометрія (форма спрайтів) лишається в ENGINE — це не баланс.
    ============================================================ */
 
+/* ---------- THEME (косметика, IP сюди) ---------- */
 const THEME = {
-  hero:  { name:"DOC",  body:"#5fd0c4", accent:"#bff7ef" },
-  enemy: { name:"GROMBLE", body:"#c2607f", accent:"#ffd2e0", boss:"#a83f63" },
+  hero:    { name:"DOC", body:"#5fd0c4", accent:"#bff7ef" },
+  enemies: {                                  // косметика за ключем архетипу
+    grunt: { name:"GROMBLE", body:"#c2607f", accent:"#ffd2e0" },
+    boss:  { name:"GROMBLE", body:"#a83f63", accent:"#ffd2e0" }
+  },
   bg:["#161a2b","#10131f"]
 };
+
+/* ---------- BALANCE (ручки відчуття) ---------- */
+const BALANCE = {
+  world:  { depthFactor:0.7, jumpInvulnZ:22 },          // глибина повільніша ×0.7; у високому стрибку (z>22) удари не влучають
+  physics:{ grav:0.8, jumpV:14 },
+  input:  { moveDeadzone:0.18, faceThreshold:0.2 },
+  field:  { top:0.45, bottom:0.92, marginX:30 },        // top/bottom — частки висоти екрана
+  combat: { hitBackReach:10, hitDepth:28 },             // вікно влучання: запас по x назад / збіг по глибині
+  combo:  { timer:70 },
+  player: { hp:100, speed:3.0, hurtDur:14, hurtDecay:0.8, hurtIframe:24,
+            air:{x:1.9,y:0.6}, airAtkDrift:1.4,
+            pickup:{x:30,y:26}, specialMinHp:14, specialHpFloor:8 },
+  enemy:  { downDur:46, getupDur:20, getupCool:18, hurtDur:12, downKbBonus:5 },
+  waves:  { bossEvery:3, base:2, max:5 },
+  weapon: { throwSpeed:11, throwStop:6, spin:0.5, projHit:{x:26,y:28}, maxOnField:2, dropChance:0.7 },
+  feel:   { hitFlash:6, shakeBase:3, shakeKbMul:0.3, shakeDecay:0.86,
+            shakePickup:2, shakeThrow:3, shakeSpecial:5, shakeLand:3, shakeBreak:3 }
+};
+
+/* ---------- WEAPONS (дані) ---------- */
+const WEAPONS={
+  pipe: {name:'ТРУБА',  color:'#e6dcae', reach:78, dmg:14, kb:13, stop:7, active:[5,13], dur_f:24, uses:8, throwDmg:20, throwKb:16},
+  blade:{name:'КЛИНОК', color:'#bfe3ff', reach:62, dmg:21, kb:9,  stop:8, active:[4,10], dur_f:20, uses:5, throwDmg:26, throwKb:12}
+};
+
+/* ---------- ATTACKS (дані) ---------- */
+const ATTACKS={
+  a1:{dur:16,active:[5,10],reach:46,dmg:7, kb:4, stop:4,next:'a2',wnd:12},
+  a2:{dur:18,active:[6,11],reach:48,dmg:8, kb:5, stop:5,next:'a3',wnd:14},
+  a3:{dur:26,active:[7,14],reach:58,dmg:16,kb:14,stop:9,next:null,wnd:0,down:true},
+  sp:{dur:34,active:[8,20],reach:78,dmg:22,kb:18,stop:10,next:null,wnd:0,cost:12,down:true},
+  air:{dur:999,active:[3,30],reach:54,dmg:13,kb:11,stop:7,next:null,wnd:0,down:true}
+};
+
+/* ---------- ENEMIES (архетипи, дані) ---------- */
+/* theme — ключ у THEME.enemies (косметика); решта — механіка.
+   speed = speedMin + rand*speedRnd. kbResist<1 = стійкість до відкиду.
+   knockdown:false = не валиться з ніг (бос). */
+const ENEMIES = {
+  grunt:{ theme:'grunt', boss:false, h:48, hp:30,  speedMin:1.1,  speedRnd:0.5,
+          approachDist:48, reach:54, windup:16, recover:24, coolAfter:30,
+          dmg:10, kbToPlayer:6, shake:5, kbResist:1,   knockdown:true  },
+  boss: { theme:'boss',  boss:true,  h:72, hp:180, speedMin:0.85, speedRnd:0,
+          approachDist:48, reach:82, windup:22, recover:28, coolAfter:20,
+          dmg:18, kbToPlayer:9, shake:8, kbResist:0.3, knockdown:false }
+};
+
+/* ============================================================
+   ENGINE — механіка. Числа беруться з DATA LAYER вище.
+   ============================================================ */
 
 /* ---------- CANVAS ---------- */
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
@@ -37,7 +99,7 @@ function resize(){ DPR=Math.min(window.devicePixelRatio||1,2); W=innerWidth; H=i
   cv.width=Math.floor(W*DPR); cv.height=Math.floor(H*DPR); ctx.setTransform(DPR,0,0,DPR,0,0); }
 addEventListener('resize',resize); resize();
 
-const GRAV=0.8, JUMP_V=14;
+const GRAV=BALANCE.physics.grav, JUMP_V=BALANCE.physics.jumpV;
 
 /* ---------- ВВІД ---------- */
 const input={mx:0,my:0,moving:false};
@@ -73,35 +135,24 @@ addEventListener('keydown',e=>{ if(!keys[e.code]){ if(e.code==='KeyJ')lightEdge=
 addEventListener('keyup',e=>{ keys[e.code]=false; });
 function pollInput(){ let kx=(keys['KeyD']?1:0)-(keys['KeyA']?1:0), ky=(keys['KeyS']?1:0)-(keys['KeyW']?1:0);
   if(joyId!==null){ kx=joyVec.x; ky=joyVec.y; } const len=Math.hypot(kx,ky);
-  input.moving=len>0.18; input.mx=input.moving?kx:0; input.my=input.moving?ky:0; }
+  input.moving=len>BALANCE.input.moveDeadzone; input.mx=input.moving?kx:0; input.my=input.moving?ky:0; }
 
 /* ---------- СВІТ ---------- */
-const FIELD=()=>({top:H*0.45, bottom:H*0.92});
+const FIELD=()=>({top:H*BALANCE.field.top, bottom:H*BALANCE.field.bottom});
 let screenShake=0, hitStop=0, combo=0, comboTimer=0, tick=0;
-function clampField(e){ const f=FIELD(); e.y=Math.max(f.top,Math.min(f.bottom,e.y)); e.x=Math.max(30,Math.min(W-30,e.x)); }
+function clampField(e){ const f=FIELD(); e.y=Math.max(f.top,Math.min(f.bottom,e.y));
+  e.x=Math.max(BALANCE.field.marginX,Math.min(W-BALANCE.field.marginX,e.x)); }
 
 /* ---------- ЗБРОЯ ---------- */
-const WEAPONS={
-  pipe: {name:'ТРУБА',  color:'#e6dcae', reach:78, dmg:14, kb:13, stop:7, active:[5,13], dur_f:24, uses:8, throwDmg:20, throwKb:16},
-  blade:{name:'КЛИНОК', color:'#bfe3ff', reach:62, dmg:21, kb:9,  stop:8, active:[4,10], dur_f:20, uses:5, throwDmg:26, throwKb:12}
-};
 let weapons=[], projectiles=[];
 function spawnWeapon(type){ const f=FIELD();
   weapons.push({ x:90+Math.random()*(W-180), y:f.top+Math.random()*(f.bottom-f.top),
     type:type||(Math.random()<0.5?'pipe':'blade'), bob:Math.random()*6 }); }
 
 /* ---------- ГРАВЕЦЬ ---------- */
-const player={ x:W*0.3, y:H*0.7, z:0, vz:0, vx:0, vy:0, face:1, hp:100, hpMax:100,
-  state:'idle', t:0, chain:0, chainWindow:0, windowed:false, iframe:0, speed:3.0,
+const player={ x:W*0.3, y:H*0.7, z:0, vz:0, vx:0, vy:0, face:1, hp:BALANCE.player.hp, hpMax:BALANCE.player.hp,
+  state:'idle', t:0, chain:0, chainWindow:0, windowed:false, iframe:0, speed:BALANCE.player.speed,
   atk:null, atkName:null, hitDone:false, airAtk:false, weapon:null, breakAfter:false };
-
-const ATTACKS={
-  a1:{dur:16,active:[5,10],reach:46,dmg:7, kb:4, stop:4,next:'a2',wnd:12},
-  a2:{dur:18,active:[6,11],reach:48,dmg:8, kb:5, stop:5,next:'a3',wnd:14},
-  a3:{dur:26,active:[7,14],reach:58,dmg:16,kb:14,stop:9,next:null,wnd:0,down:true},
-  sp:{dur:34,active:[8,20],reach:78,dmg:22,kb:18,stop:10,next:null,wnd:0,cost:12,down:true},
-  air:{dur:999,active:[3,30],reach:54,dmg:13,kb:11,stop:7,next:null,wnd:0,down:true}
-};
 
 function startAttack(name){
   const air=(player.state==='air'||player.z>0||player.vz>0||name==='air');
@@ -110,102 +161,105 @@ function startAttack(name){
     player.atk={dur:w.dur_f, active:w.active, reach:w.reach, dmg:w.dmg, kb:w.kb, stop:w.stop, next:null, wnd:0};
     player.weapon.uses--; if(player.weapon.uses<=0) player.breakAfter=true;
   } else { player.atk=ATTACKS[name]; }
-  if(name==='sp'){ player.hp=Math.max(8,player.hp-player.atk.cost); screenShake=Math.max(screenShake,5); }
+  if(name==='sp'){ player.hp=Math.max(BALANCE.player.specialHpFloor,player.hp-player.atk.cost); screenShake=Math.max(screenShake,BALANCE.feel.shakeSpecial); }
 }
 function throwWeapon(){ const w=WEAPONS[player.weapon.type];
-  projectiles.push({x:player.x+player.face*16, y:player.y, vx:player.face*11, face:player.face,
+  projectiles.push({x:player.x+player.face*16, y:player.y, vx:player.face*BALANCE.weapon.throwSpeed, face:player.face,
     dmg:w.throwDmg, kb:w.throwKb, type:player.weapon.type, spin:0, dead:false});
-  player.weapon=null; screenShake=Math.max(screenShake,3); }
+  player.weapon=null; screenShake=Math.max(screenShake,BALANCE.feel.shakeThrow); }
 function stepAir(){ player.z+=player.vz; player.vz-=GRAV; if(player.z<=0){ player.z=0; player.vz=0; return true; } return false; }
 
 function updatePlayer(){
   player.t++; if(player.iframe>0) player.iframe--; if(player.chainWindow>0) player.chainWindow--;
   if(!player.weapon && player.z===0 && (player.state==='idle'||player.state==='walk')){
     for(let i=0;i<weapons.length;i++){ const g=weapons[i];
-      if(Math.abs(g.x-player.x)<30 && Math.abs(g.y-player.y)<26){
-        player.weapon={type:g.type, uses:WEAPONS[g.type].uses}; weapons.splice(i,1); screenShake=Math.max(screenShake,2); break; } } }
+      if(Math.abs(g.x-player.x)<BALANCE.player.pickup.x && Math.abs(g.y-player.y)<BALANCE.player.pickup.y){
+        player.weapon={type:g.type, uses:WEAPONS[g.type].uses}; weapons.splice(i,1); screenShake=Math.max(screenShake,BALANCE.feel.shakePickup); break; } } }
 
-  if(player.state==='hurt'){ player.x+=player.vx; player.y+=player.vy; player.vx*=0.8; player.vy*=0.8;
-    if(player.t>14) player.state='idle'; clampField(player); return; }
+  if(player.state==='hurt'){ player.x+=player.vx; player.y+=player.vy; player.vx*=BALANCE.player.hurtDecay; player.vy*=BALANCE.player.hurtDecay;
+    if(player.t>BALANCE.player.hurtDur) player.state='idle'; clampField(player); return; }
 
   if(player.state==='attack'){
     const a=player.atk;
     if(!player.hitDone && player.t>=a.active[0] && player.t<=a.active[1]){
       for(const en of enemies){ if(en.dead) continue;
         const dx=(en.x-player.x)*player.face, dy=Math.abs(en.y-player.y);
-        if(dx>-10 && dx<a.reach && dy<28){ hitEnemy(en,a,player.face); player.hitDone=true; } } }
-    if(player.airAtk){ if(input.moving) player.x+=input.mx*1.4;
+        if(dx>-BALANCE.combat.hitBackReach && dx<a.reach && dy<BALANCE.combat.hitDepth){ hitEnemy(en,a,player.face); player.hitDone=true; } } }
+    if(player.airAtk){ if(input.moving) player.x+=input.mx*BALANCE.player.airAtkDrift;
       const landed=stepAir(); clampField(player);
-      if(landed||player.t>=a.dur){ player.state='idle'; player.airAtk=false; if(landed) screenShake=Math.max(screenShake,3); }
+      if(landed||player.t>=a.dur){ player.state='idle'; player.airAtk=false; if(landed) screenShake=Math.max(screenShake,BALANCE.feel.shakeLand); }
       return; }
     if(a.next && player.t>=a.active[1] && !player.windowed){ player.windowed=true; player.chainWindow=a.wnd; }
     if(a.next && player.chainWindow>0 && lightEdge){ startAttack(a.next); lightEdge=false; return; }
     if(player.t>=a.dur){ player.state='idle'; player.windowed=false;
-      if(player.breakAfter){ player.weapon=null; player.breakAfter=false; screenShake=Math.max(screenShake,3); } }
+      if(player.breakAfter){ player.weapon=null; player.breakAfter=false; screenShake=Math.max(screenShake,BALANCE.feel.shakeBreak); } }
     return;
   }
 
   if(player.state==='air'){
-    if(input.moving){ player.x+=input.mx*1.9; player.y+=input.my*0.6; if(Math.abs(input.mx)>0.2) player.face=input.mx>0?1:-1; }
+    if(input.moving){ player.x+=input.mx*BALANCE.player.air.x; player.y+=input.my*BALANCE.player.air.y; if(Math.abs(input.mx)>BALANCE.input.faceThreshold) player.face=input.mx>0?1:-1; }
     if(lightEdge){ startAttack('air'); return; }
-    if(specialEdge && player.hp>14){ startAttack('sp'); return; }
+    if(specialEdge && player.hp>BALANCE.player.specialMinHp){ startAttack('sp'); return; }
     const landed=stepAir(); clampField(player); if(landed) player.state='idle'; return;
   }
 
   if(jumpEdge){ player.vz=JUMP_V; player.state='air'; }
   else if(lightEdge){ startAttack(player.weapon?'wpn':'a1'); }
-  else if(specialEdge){ if(player.weapon) throwWeapon(); else if(player.hp>14) startAttack('sp'); }
-  else { if(input.moving){ player.vx=input.mx*player.speed; player.vy=input.my*player.speed*0.7;
-      player.x+=player.vx; player.y+=player.vy; if(Math.abs(input.mx)>0.2) player.face=input.mx>0?1:-1; player.state='walk'; }
+  else if(specialEdge){ if(player.weapon) throwWeapon(); else if(player.hp>BALANCE.player.specialMinHp) startAttack('sp'); }
+  else { if(input.moving){ player.vx=input.mx*player.speed; player.vy=input.my*player.speed*BALANCE.world.depthFactor;
+      player.x+=player.vx; player.y+=player.vy; if(Math.abs(input.mx)>BALANCE.input.faceThreshold) player.face=input.mx>0?1:-1; player.state='walk'; }
     else player.state='idle'; }
   clampField(player);
 }
 
 function hitEnemy(en,a,dir){
-  en.hp-=a.dmg; en.vx=dir*a.kb*(en.boss?0.3:1); en.vy=0; en.flash=6;
-  hitStop=Math.max(hitStop,a.stop); screenShake=Math.max(screenShake,3+a.kb*0.3); combo++; comboTimer=70;
-  if(en.hp<=0){ en.dead=true; en.deadT=0; combo++; comboTimer=70; return; }
-  if(a.down && !en.boss){ en.state='down'; en.t=0; en.vx=dir*(a.kb+5); }   // збиває з ніг
+  const A=ENEMIES[en.type];
+  en.hp-=a.dmg; en.vx=dir*a.kb*A.kbResist; en.vy=0; en.flash=BALANCE.feel.hitFlash;
+  hitStop=Math.max(hitStop,a.stop); screenShake=Math.max(screenShake,BALANCE.feel.shakeBase+a.kb*BALANCE.feel.shakeKbMul); combo++; comboTimer=BALANCE.combo.timer;
+  if(en.hp<=0){ en.dead=true; en.deadT=0; combo++; comboTimer=BALANCE.combo.timer; return; }
+  if(a.down && A.knockdown){ en.state='down'; en.t=0; en.vx=dir*(a.kb+BALANCE.enemy.downKbBonus); }   // збиває з ніг
   else { en.state='hurt'; en.t=0; }
 }
 
 function updateProjectiles(){
-  for(const p of projectiles){ if(p.dead) continue; p.x+=p.vx; p.spin+=0.5;
+  for(const p of projectiles){ if(p.dead) continue; p.x+=p.vx; p.spin+=BALANCE.weapon.spin;
     if(p.x<-30||p.x>W+30){ p.dead=true; continue; }
     for(const en of enemies){ if(en.dead) continue;
-      if(Math.abs(en.x-p.x)<26 && Math.abs(en.y-p.y)<28){ hitEnemy(en,{dmg:p.dmg,kb:p.kb,stop:6,down:true},p.face); p.dead=true; break; } } }
+      if(Math.abs(en.x-p.x)<BALANCE.weapon.projHit.x && Math.abs(en.y-p.y)<BALANCE.weapon.projHit.y){ hitEnemy(en,{dmg:p.dmg,kb:p.kb,stop:BALANCE.weapon.throwStop,down:true},p.face); p.dead=true; break; } } }
   projectiles=projectiles.filter(p=>!p.dead);
 }
 
 /* ---------- ВОРОГИ / БОС ---------- */
 let enemies=[]; let wave=0;
-function spawnEnemy(isBoss){ const f=FIELD();
-  enemies.push({ x:Math.random()<0.5?-20:W+20, y:f.top+Math.random()*(f.bottom-f.top),
-    z:0,vx:0,vy:0, hp:isBoss?180:30, hpMax:isBoss?180:30, state:'approach', t:0, dead:false, deadT:0,
-    flash:0, face:1, speed:isBoss?0.85:1.1+Math.random()*0.5, cool:Math.random()*40, boss:!!isBoss }); }
-function spawnWave(){ wave++; const boss=(wave%3===0);
-  if(boss) spawnEnemy(true);
-  const n=boss?1:Math.min(2+wave,5);
-  for(let i=0;i<n;i++) spawnEnemy(false); }
+function spawnEnemy(typeKey){ const A=ENEMIES[typeKey], f=FIELD();
+  enemies.push({ type:typeKey, boss:A.boss,
+    x:Math.random()<0.5?-20:W+20, y:f.top+Math.random()*(f.bottom-f.top),
+    z:0,vx:0,vy:0, hp:A.hp, hpMax:A.hp, state:'approach', t:0, dead:false, deadT:0,
+    flash:0, face:1, speed:A.speedMin+Math.random()*A.speedRnd, cool:Math.random()*40 }); }
+function spawnWave(){ wave++; const boss=(wave%BALANCE.waves.bossEvery===0);
+  if(boss) spawnEnemy('boss');
+  const n=boss?1:Math.min(BALANCE.waves.base+wave,BALANCE.waves.max);
+  for(let i=0;i<n;i++) spawnEnemy('grunt'); }
 function updateEnemy(en){
+  const A=ENEMIES[en.type];
   if(en.dead){ en.deadT++; return; } if(en.flash>0) en.flash--; en.t++;
   const dx=player.x-en.x, dy=player.y-en.y; if(en.state!=='down') en.face=dx>0?1:-1;
-  if(en.state==='down'){ en.x+=en.vx; en.vx*=0.85; if(en.t>46){ en.state='getup'; en.t=0; } clampField(en); return; }
-  if(en.state==='getup'){ if(en.t>20){ en.state='approach'; en.cool=18; } return; }
-  if(en.state==='hurt'){ en.x+=en.vx; en.y+=en.vy; en.vx*=0.82; en.vy*=0.82; if(en.t>12) en.state='approach'; clampField(en); return; }
-  if(en.state==='windup'){ const wt=en.boss?22:16;
-    if(en.t>wt){ const adx=Math.abs(dx), ady=Math.abs(dy), reach=en.boss?82:54;
-      if(adx<reach && ady<28 && player.z<22 && player.iframe===0 && player.state!=='hurt'){
-        player.hp-=en.boss?18:10; player.state='hurt'; player.t=0; player.iframe=24; player.vx=en.face*(en.boss?9:6); player.vy=0;
-        screenShake=Math.max(screenShake,en.boss?8:5); combo=0; comboTimer=0; }
+  if(en.state==='down'){ en.x+=en.vx; en.vx*=0.85; if(en.t>BALANCE.enemy.downDur){ en.state='getup'; en.t=0; } clampField(en); return; }
+  if(en.state==='getup'){ if(en.t>BALANCE.enemy.getupDur){ en.state='approach'; en.cool=BALANCE.enemy.getupCool; } return; }
+  if(en.state==='hurt'){ en.x+=en.vx; en.y+=en.vy; en.vx*=0.82; en.vy*=0.82; if(en.t>BALANCE.enemy.hurtDur) en.state='approach'; clampField(en); return; }
+  if(en.state==='windup'){
+    if(en.t>A.windup){ const adx=Math.abs(dx), ady=Math.abs(dy);
+      if(adx<A.reach && ady<BALANCE.combat.hitDepth && player.z<BALANCE.world.jumpInvulnZ && player.iframe===0 && player.state!=='hurt'){
+        player.hp-=A.dmg; player.state='hurt'; player.t=0; player.iframe=BALANCE.player.hurtIframe; player.vx=en.face*A.kbToPlayer; player.vy=0;
+        screenShake=Math.max(screenShake,A.shake); combo=0; comboTimer=0; }
       en.state='recover'; en.t=0; } return; }
-  if(en.state==='recover'){ if(en.t>(en.boss?28:24)){ en.state='approach'; en.cool=en.boss?20:30; } return; }
+  if(en.state==='recover'){ if(en.t>A.recover){ en.state='approach'; en.cool=A.coolAfter; } return; }
   const dist=Math.hypot(dx,dy); if(en.cool>0) en.cool--;
-  if(dist>48){ const len=dist||1; en.x+=dx/len*en.speed; en.y+=dy/len*en.speed*0.7; }
+  if(dist>A.approachDist){ const len=dist||1; en.x+=dx/len*en.speed; en.y+=dy/len*en.speed*BALANCE.world.depthFactor; }
   else if(en.cool===0){ en.state='windup'; en.t=0; } clampField(en);
 }
 function cleanupEnemies(){ enemies=enemies.filter(e=>!(e.dead&&e.deadT>30));
-  if(enemies.length===0){ if(weapons.length<2 && Math.random()<0.7) spawnWeapon(); spawnWave(); } }
+  if(enemies.length===0){ if(weapons.length<BALANCE.weapon.maxOnField && Math.random()<BALANCE.weapon.dropChance) spawnWeapon(); spawnWave(); } }
 
 /* ---------- РЕНДЕР ---------- */
 function drawShadow(x,y,r){ ctx.save(); ctx.globalAlpha=.28; ctx.fillStyle='#000';
@@ -275,9 +329,9 @@ function render(){
       drawFighter(player,THEME.hero.body,THEME.hero.accent,54,isAtk && player.atkName!=='wpn',player.atk);
       if(player.weapon) drawWeaponInHand(player);
     } else { if(o.e.dead && o.e.deadT>30) continue;
-      const eh=o.e.boss?72:48, ecol=o.e.boss?THEME.enemy.boss:THEME.enemy.body;
+      const A=ENEMIES[o.e.type], th=THEME.enemies[A.theme];
       ctx.save(); if(o.e.dead) ctx.globalAlpha=Math.max(0,1-o.e.deadT/30);
-      drawFighter(o.e,ecol,THEME.enemy.accent,eh,false,null); ctx.restore(); } }
+      drawFighter(o.e,th.body,th.accent,A.h,false,null); ctx.restore(); } }
   for(const p of projectiles){ const w=WEAPONS[p.type];
     ctx.save(); ctx.translate(p.x,p.y-30); ctx.rotate(p.spin);
     ctx.strokeStyle=w.color; ctx.lineWidth=5; ctx.lineCap='round';
@@ -294,8 +348,8 @@ function render(){
   ctx.textAlign='right'; ctx.fillStyle='#9aa4bf'; ctx.font='700 13px system-ui'; ctx.fillText('Хвиля '+wave,W-16,24);
 
   const boss=enemies.find(e=>e.boss && !e.dead);
-  if(boss){ ctx.textAlign='center'; ctx.fillStyle=THEME.enemy.accent; ctx.font='700 12px system-ui';
-    ctx.fillText('БОС — '+THEME.enemy.name, W/2, 52); hpBar(W/2-120,58,240,boss.hp,boss.hpMax,THEME.enemy.boss); }
+  if(boss){ ctx.textAlign='center'; ctx.fillStyle=THEME.enemies.boss.accent; ctx.font='700 12px system-ui';
+    ctx.fillText('БОС — '+THEME.enemies.boss.name, W/2, 52); hpBar(W/2-120,58,240,boss.hp,boss.hpMax,THEME.enemies.boss.body); }
 
   if(combo>1 && comboTimer>0){ ctx.save(); ctx.textAlign='center';
     const s=1+Math.min(combo,30)*0.02; ctx.font='800 '+Math.floor(34*s)+'px system-ui';
@@ -316,7 +370,7 @@ function frame(){
     if(comboTimer>0){ comboTimer--; if(comboTimer===0) combo=0; }
     if(player.hp<=0){ player.hp=player.hpMax; player.x=W*0.3; player.y=H*0.7; player.z=0; player.vz=0;
       player.state='idle'; player.weapon=null; player.breakAfter=false; enemies=[]; weapons=[]; projectiles=[]; wave=0; combo=0; spawnWave(); spawnWeapon(); } }
-  if(screenShake>0) screenShake*=0.86;
+  if(screenShake>0) screenShake*=BALANCE.feel.shakeDecay;
   lightEdge=false; specialEdge=false; jumpEdge=false; tick++;
   render(); requestAnimationFrame(frame);
 }
