@@ -60,7 +60,7 @@ const THEME = {
    px — рядки сітки, по w символів. Рушій малює масштабовані пікселі (drawSpritePixels). */
 const HERO_SKINS = {
   rick: { name:"RIQ", body:"#a9d2e6", accent:"#8ed0cb",
-    imgFrameSrc:["rick1.jpg?v=1"], imgDrawH:150,   // РЕАЛЬНА картинка користувача (як є). Додати "rick2.jpg" 2-м кадром → кліпання заплющеними очима. Нема файлів → px-спрайт нижче.
+    imgFrameSrc:["rick1.jpg?v=2","rick2.jpg?v=2"], imgDrawH:150,   // РЕАЛЬНІ картинки користувача (як є): rick1=відкриті очі, rick2=заплющені. Періодично кліпає. Нема файлів → px-спрайт нижче.
     sprite:{ w:26, h:37, scale:4,
       pal:{ '.':null, E:'#0d0d10', H:'#a9d2e6', d:'#7fb0cf', S:'#cdbfa8', s:'#ab9d84', B:'#33414b',
             W:'#f4f6f7', K:'#7a3338', C:'#eef2f3', c:'#c2ccd2', T:'#8ed0cb',
@@ -329,10 +329,12 @@ function loadHeroSheet(key){ const sk=HERO_SKINS[key];
       const im=imgs[0], frames=sk.imgFrames, fw=Math.floor(im.width/frames), fh=im.height;
       const oc=mkCanvas(im.width,im.height), ox=oc.getContext('2d'); ox.drawImage(im,0,0);
       keyOutBackground(ox, im.width, im.height); heroSheet[key]=finishSheet(oc,fw,fh,frames); return; }
-    const fw=imgs[0].width, fh=imgs[0].height, frames=imgs.length;     // окремий файл на кадр
-    const oc=mkCanvas(fw*frames, fh), ox=oc.getContext('2d');
-    imgs.forEach((im,i)=>ox.drawImage(im, i*fw, 0));
-    keyOutBackground(ox, fw*frames, fh); heroSheet[key]=finishSheet(oc,fw,fh,frames);
+    const frames=imgs.length, fw=Math.max(...imgs.map(im=>im.width)), fh=Math.max(...imgs.map(im=>im.height));
+    const oc=mkCanvas(fw*frames, fh), ox=oc.getContext('2d'); ox.imageSmoothingEnabled=false;   // кадри різних розмірів → вирівнюємо по низу/центру (ноги на місці)
+    imgs.forEach((im,i)=>{ const t=mkCanvas(im.width,im.height), tx=t.getContext('2d');
+      tx.drawImage(im,0,0); keyOutBackground(tx, im.width, im.height);                            // фон прибираємо в кожному кадрі окремо
+      ox.drawImage(t, i*fw + Math.floor((fw-im.width)/2), fh-im.height); });
+    heroSheet[key]=finishSheet(oc,fw,fh,frames);
   }catch(e){ heroSheet[key]=null; } }
   srcs.forEach((src,idx)=>{ const im=new Image();
     im.onload=function(){ imgs[idx]=im; if(++loaded===srcs.length && !failed) build(); };
