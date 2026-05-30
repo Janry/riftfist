@@ -51,6 +51,73 @@ const THEME = {
   ]
 };
 
+/* ---------- HERO_SKINS (спрайт-як-дані; IP-залежна косметика — свапабельна) ----------
+   Рішення (явне, фіксує зняте IP-обмеження для дев-білду): тримаємо ДВІ шкіри героя
+   й перемикаємось між ними наживо (клавіша T або тап «АРТ»). 'rick' — впізнаваний
+   R&M-оммаж (дефолт зараз). 'doc' — оригінал «у дусі», IP-safe версія-страховка.
+   Новий герой = ще один рядок тут, без правки рушія. Стиль — DD&BT (16-біт пікселі).
+   sprite: { w,h — нативна сітка в пікселях; pal — символ→колір ('.'/відсутній = прозоро);
+   px — рядки сітки, по w символів. Рушій малює масштабовані пікселі (drawSpritePixels). */
+const HERO_SKINS = {
+  rick: { name:"RIQ", body:"#cfe0e8", accent:"#a9cad8",
+    sprite:{ w:16, h:24,
+      pal:{ '.':null, H:'#a9cad8', h:'#6f93a3', S:'#edcaa0', s:'#c9a274', B:'#5d7d8b',
+            E:'#1d2128', C:'#eef2f4', c:'#c3cfd6', T:'#7fb3bb', P:'#9c7a52', p:'#785b3b',
+            O:'#2b303a', K:'#8a4f48' },
+      px:[ "....HHHHHHHH....",   // дикий чуб
+           "...HHHHHHHHHH...",
+           "..HHHHhHHHhHHH..",
+           "..HHHHHHHHHHHH..",
+           "..HhHSSSSSShHh..",
+           "...HSSSSSSSSH...",
+           "...SSBBBBBBSS...",   // унібров
+           "...SSEESSEESS...",   // очі
+           "...SSSSSSSSSS...",
+           "....SSKKKKSS....",   // рот
+           "....sSSSSSSs....",
+           ".....cTTTTc.....",   // комір
+           "...CCcTTTTcCC...",   // плечі (халат + сорочка)
+           "..CCCCTTTTCCCC..",
+           "..sCCCTTTTCCCs..",
+           "..SCCCCTTCCCCS..",   // кисті по боках
+           "...CCCCCCCCCC...",   // халат
+           "...CCcCCCCcCC...",
+           "...CCCPPPPCCC...",   // поділ халата + штани
+           "....CPPPPPPC....",
+           "....PPPppPPP....",
+           "....PPp..pPP....",   // ноги
+           "....Pp....pP....",
+           "....OO....OO...." ] } },
+  doc: { name:"DOC", body:"#5fd0c4", accent:"#bff7ef",
+    sprite:{ w:16, h:24,
+      pal:{ '.':null, H:'#34505c', h:'#22343d', S:'#e8c39a', s:'#c39e75', G:'#2a3a44',
+            A:'#bff7ef', J:'#5fd0c4', j:'#3fa89c', O:'#243038', K:'#8a4f48' },
+      px:[ "......HHHH......",   // коротка зачіска (інший силует, не Рік)
+           "....HHHHHHHH....",
+           "...HHHHHHHHHH...",
+           "..HHHSSSSSSHHH..",
+           "...HSSSSSSSSH...",
+           "...SGGGGGGGGS...",   // окуляри (замість унібрів)
+           "...SGAAGGAAGS...",
+           "...SSSSSSSSSS...",
+           "....SSKKKKSS....",   // рот
+           "....sSSSSSSs....",
+           ".....AJJJJA.....",   // комір
+           "...JJAJJJJAJJ...",   // плечі комбінезона
+           "..JJJJJJJJJJJJ..",
+           "..sJJjJJJJjJJs..",
+           "..SJJAAJJAAJJS..",   // пояс-акцент + кисті
+           "...JJJJJJJJJJ...",
+           "...JJjJJJJjJJ...",
+           "...JJJJ..JJJJ...",   // ноги
+           "...JJjJ..JjJJ...",
+           "...JJjJ..JjJJ...",
+           "...JJj....jJJ...",
+           "...Jj......jJ...",
+           "...OOO....OOO...",   // черевики
+           "...OOO....OOO..." ] } }
+};
+
 /* ---------- BALANCE (ручки відчуття) ---------- */
 const BALANCE = {
   world:  { depthFactor:0.7, jumpInvulnZ:22 },          // глибина повільніша ×0.7; у високому стрибку (z>22) удари не влучають
@@ -132,6 +199,7 @@ function btnSpecial(){ return {x:W-112, y:H-188, r:38}; }
 function inCircle(px,py,c){ const dx=px-c.x,dy=py-c.y; return dx*dx+dy*dy<=c.r*c.r; }
 function onTouchStart(e){ e.preventDefault();
   for(const t of e.changedTouches){ const x=t.clientX,y=t.clientY;
+    if(inRect(x,y,btnSkin())){ toggleSkin(); continue; }              // тап «АРТ» — перемкнути шкіру
     if(inCircle(x,y,btnSpecial())){ specialTouchId=t.identifier; specialEdge=true; continue; }
     if(inCircle(x,y,btnJump())){ jumpTouchId=t.identifier; jumpEdge=true; continue; }
     if(inCircle(x,y,btnLight())){ lightTouchId=t.identifier; lightEdge=true; continue; }
@@ -151,7 +219,7 @@ cv.addEventListener('touchmove',onTouchMove,{passive:false});
 cv.addEventListener('touchend',onTouchEnd,{passive:false});
 cv.addEventListener('touchcancel',onTouchEnd,{passive:false});
 const keys={};
-addEventListener('keydown',e=>{ if(!keys[e.code]){ if(e.code==='KeyJ')lightEdge=true; if(e.code==='KeyK')specialEdge=true; if(e.code==='KeyL'||e.code==='Space')jumpEdge=true; } keys[e.code]=true; });
+addEventListener('keydown',e=>{ if(!keys[e.code]){ if(e.code==='KeyJ')lightEdge=true; if(e.code==='KeyK')specialEdge=true; if(e.code==='KeyL'||e.code==='Space')jumpEdge=true; if(e.code==='KeyT')toggleSkin(); } keys[e.code]=true; });
 addEventListener('keyup',e=>{ keys[e.code]=false; });
 function pollInput(){ let kx=(keys['KeyD']?1:0)-(keys['KeyA']?1:0), ky=(keys['KeyS']?1:0)-(keys['KeyW']?1:0);
   if(joyId!==null){ kx=joyVec.x; ky=joyVec.y; } const len=Math.hypot(kx,ky);
@@ -172,7 +240,14 @@ function spawnWeapon(type){ const f=FIELD();
 /* ---------- ГРАВЕЦЬ ---------- */
 const player={ x:W*0.3, y:H*0.7, z:0, vz:0, vx:0, vy:0, face:1, hp:BALANCE.player.hp, hpMax:BALANCE.player.hp,
   state:'idle', t:0, chain:0, chainWindow:0, windowed:false, iframe:0, speed:BALANCE.player.speed,
-  atk:null, atkName:null, hitDone:false, airAtk:false, weapon:null, breakAfter:false };
+  atk:null, atkName:null, hitDone:false, airAtk:false, weapon:null, breakAfter:false, flash:0 };
+
+/* активна шкіра героя (свапабельна наживо: клавіша T / тап «АРТ») */
+let heroSkin='rick';
+const curSkin=()=>HERO_SKINS[heroSkin];
+function toggleSkin(){ heroSkin = heroSkin==='rick' ? 'doc' : 'rick'; }
+function btnSkin(){ return {x:14, y:60, w:120, h:22}; }
+function inRect(px,py,r){ return px>=r.x && px<=r.x+r.w && py>=r.y && py<=r.y+r.h; }
 
 function startAttack(name){
   const air=(player.state==='air'||player.z>0||player.vz>0||name==='air');
@@ -190,7 +265,7 @@ function throwWeapon(){ const w=WEAPONS[player.weapon.type];
 function stepAir(){ player.z+=player.vz; player.vz-=GRAV; if(player.z<=0){ player.z=0; player.vz=0; return true; } return false; }
 
 function updatePlayer(){
-  player.t++; if(player.iframe>0) player.iframe--; if(player.chainWindow>0) player.chainWindow--;
+  player.t++; if(player.iframe>0) player.iframe--; if(player.chainWindow>0) player.chainWindow--; if(player.flash>0) player.flash--;
   if(!player.weapon && player.z===0 && (player.state==='idle'||player.state==='walk')){
     for(let i=0;i<weapons.length;i++){ const g=weapons[i];
       if(Math.abs(g.x-player.x)<BALANCE.player.pickup.x && Math.abs(g.y-player.y)<BALANCE.player.pickup.y){
@@ -242,7 +317,7 @@ function hitEnemy(en,a,dir){
 }
 function hurtPlayer(dmg,kb,dir,shake){     // удар по гравцю (мілі або снаряд); пропускає, якщо iframe/hurt/високий стрибок
   if(player.iframe>0 || player.state==='hurt' || player.z>=BALANCE.world.jumpInvulnZ) return false;
-  player.hp-=dmg; player.state='hurt'; player.t=0; player.iframe=BALANCE.player.hurtIframe; player.vx=dir*kb; player.vy=0;
+  player.hp-=dmg; player.state='hurt'; player.t=0; player.iframe=BALANCE.player.hurtIframe; player.vx=dir*kb; player.vy=0; player.flash=BALANCE.feel.hitFlash;
   screenShake=Math.max(screenShake,shake); combo=0; comboTimer=0; return true;
 }
 
@@ -343,6 +418,32 @@ function drawFighter(e,col,acc,h,isAtk,atkInfo){
   if(e.flash>0){ ctx.save(); ctx.globalAlpha=e.flash/6; ctx.fillStyle='#fff';
     ctx.beginPath(); ctx.roundRect(x-h*0.31,by-h*1.12,h*0.62,h*1.12,12); ctx.fill(); ctx.restore(); }
 }
+// малює піксель-сітку спрайта: межі округлюємо до цілих → крихкі пікселі без швів.
+// footX/footY — точка під ногами (низ-центр). face<0 → дзеркалимо по колонках. tint — перефарбувати все (флеш).
+function drawSpritePixels(spr, footX, footY, s, face, tint){
+  const SW=spr.w, SH=spr.h, pal=spr.pal, rows=spr.px;
+  const ox=footX-(SW*s)/2, oy=footY-SH*s;
+  for(let r=0;r<SH;r++){ const row=rows[r];
+    const y0=Math.round(oy+r*s), y1=Math.round(oy+(r+1)*s);
+    for(let c=0;c<SW;c++){ const ch=row[face<0?(SW-1-c):c];
+      if(!ch||ch==='.') continue; const col=tint||pal[ch]; if(!col) continue;
+      const x0=Math.round(ox+c*s), x1=Math.round(ox+(c+1)*s);
+      ctx.fillStyle=col; ctx.fillRect(x0,y0,x1-x0,y1-y0); } }
+}
+function drawHero(p, isAtk){
+  const sk=curSkin(), spr=sk.sprite, h=54, zz=p.z||0, by=p.y-zz;
+  const s=h*1.46/spr.h;                                  // ~78px заввишки на екрані
+  drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280));
+  const bob = p.state==='walk' ? -(Math.floor(tick/6)%2)*Math.round(s*0.5) : 0;  // 2-кадровий «крок»
+  const lunge = isAtk ? p.face*s*1.5 : 0;                // випад уперед на ударі
+  const footX=p.x+lunge, footY=by+bob+1;
+  drawSpritePixels(spr, footX, footY, s, p.face, null);
+  if(p.flash>0){ ctx.save(); ctx.globalAlpha=Math.min(1,p.flash/6);
+    drawSpritePixels(spr, footX, footY, s, p.face, '#fff'); ctx.restore(); }
+  if(isAtk){ const reach=(p.atk&&p.atk.reach)||44, fy=footY-spr.h*s*0.52;  // кулак (без окремого кадру)
+    const fx=p.x+p.face*reach*0.62; ctx.fillStyle=sk.accent;
+    ctx.fillRect(Math.round(p.face>0?fx:fx-s*3), Math.round(fy), Math.round(s*3), Math.round(s*3)); }
+}
 function drawWeaponInHand(p){
   const swinging=p.state==='attack' && p.atkName==='wpn', by=p.y-(p.z||0), w=WEAPONS[p.weapon.type];
   ctx.save(); ctx.translate(p.x+p.face*15, by-54*0.6); ctx.scale(p.face,1); ctx.rotate(swinging?-0.45:-0.95);
@@ -385,7 +486,7 @@ function render(){
   const all=[{e:player,p:true},...enemies.map(e=>({e,p:false}))]; all.sort((a,b)=>a.e.y-b.e.y);
   for(const o of all){
     if(o.p){ const isAtk=player.state==='attack' && player.t>=player.atk.active[0] && player.t<=player.atk.active[1];
-      drawFighter(player,THEME.hero.body,THEME.hero.accent,54,isAtk && player.atkName!=='wpn',player.atk);
+      drawHero(player, isAtk && player.atkName!=='wpn');
       if(player.weapon) drawWeaponInHand(player);
     } else { if(o.e.dead && o.e.deadT>30) continue;
       const A=ENEMIES[o.e.type], th=THEME.enemies[A.theme];
@@ -407,7 +508,10 @@ function render(){
 
   // HUD
   ctx.fillStyle='#cfe9e4'; ctx.font='700 13px system-ui'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
-  ctx.fillText(THEME.hero.name,16,24); hpBar(16,30,180,player.hp,player.hpMax,THEME.hero.body);
+  ctx.fillText(curSkin().name,16,24); hpBar(16,30,180,player.hp,player.hpMax,curSkin().body);
+  { const sb=btnSkin(); ctx.save(); ctx.fillStyle='rgba(255,255,255,.08)'; ctx.fillRect(sb.x,sb.y,sb.w,sb.h);
+    ctx.fillStyle=curSkin().accent; ctx.font='700 11px system-ui'; ctx.textBaseline='middle';
+    ctx.fillText('АРТ: '+curSkin().name+'  [T]', sb.x+8, sb.y+sb.h/2); ctx.restore(); ctx.textBaseline='alphabetic'; }
   if(player.weapon){ const w=WEAPONS[player.weapon.type];
     ctx.fillStyle=w.color; ctx.font='700 12px system-ui'; ctx.fillText(w.name,16,54);
     for(let i=0;i<player.weapon.uses;i++) ctx.fillRect(78+i*9,45,6,9); }
