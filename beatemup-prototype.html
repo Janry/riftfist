@@ -59,81 +59,86 @@ const THEME = {
    sprite: { w,h — нативна сітка в пікселях; pal — символ→колір ('.'/відсутній = прозоро);
    px — рядки сітки, по w символів. Рушій малює масштабовані пікселі (drawSpritePixels). */
 const HERO_SKINS = {
-  rick: { name:"RIQ", body:"#bcd9ec", accent:"#8ad2cd",
-    sprite:{ w:24, h:34, scale:4,         // scale — цілий піксель-скейл (екранні px на 1 піксель спрайта); розмір героя = h*scale, без дробового розтягу
-      pal:{ '.':null, E:'#16161c', H:'#bcd9ec', d:'#7ea7c2', S:'#d9c3a3', s:'#b49b78',
-            B:'#46545e', W:'#f5f8f9', K:'#7c3a3a', C:'#f1f4f5', c:'#c9d2d7',
-            T:'#8ad2cd', Y:'#d8b23f', P:'#6d5130', p:'#4d3920', O:'#1c1c22' },
-      px:[ ".....E....E.E....E......",   // гострий полум'яний чуб (спайки)
-           "....EHE..EHEHE..EHE.....",
-           "...EHHHE.EHHEHHE.EHHHE..",
-           "..EHHHHHHHHHHHHHHHHHHE..",   // передня V-виїмка над чолом (вище)
-           ".EHHHHHHHHHHHHHHHHHHHHE.",
-           ".EHHHHHHHHHHHHHHHHHHHHE.",
-           "EHHHHHHHHHHHHHHHHHHHHHHE",
-           "EdHHHHHHHHHHHHHHHHHHHHdE",   // боковий блакитний відтінок
-           "EHHHHSSSSSSSSSSSSSSHHHHE",   // лоб
-           "EHHHSSSSSSSSSSSSSSSSHHHE",
-           ".EHHSSSSSSSSSSSSSSSSHHE.",
-           ".EHSBBBBBBBBBBBBBBBBSHE.",   // унібров
-           ".EHSSWWWWWSSSSWWWWWSSHE.",   // великі білі очі
-           ".EHSSWWEWWSSSSWWEWWSSHE.",   // зіниці
-           ".EHSSWWWWWSSSSWWWWWSSHE.",
-           ".EHSSSSSSSSssSSSSSSSSHE.",   // ніс
-           ".EHsSSSSSKKKKKKSSSSSsHE.",   // відкритий рот
-           "..EsSSSSsKKKKsSSSSsE....",   // підборіддя
-           "...EsSSSSSSSSSSSSSSsE...",   // шия
-           "..ECCCcTTTTTTTTcCCCE....",   // комір + сорочка (V)
-           ".ECCCCccTTTTTTTccCCCCE..",   // плечі (халат)
-           "ECCCCCcTTTTTTTTTcCCCCCE.",
-           "ECCCCcccTTTTTTTcccCCCCE.",   // руки розходяться
-           ".ECCCE.CcTTTTTTcC.ECCCE.",   // лікті в боки (руки в боки)
-           ".ECCCE.CYYYYYYYYC.ECCCE.",   // жовтий пояс
-           "..ECCE.SccPPPPccS.ECCE..",   // кисті на стегнах
-           "..ECCccPPPPPPPPccCCE....",   // поділ халата + штани
-           "...EcCPPPPPPPPPPCcE.....",
-           "....EPPPPPPPPPPPPE......",   // штани
-           "....EPPPPpPPpPPPPE......",
-           "....EPPPPE..EPPPPE......",   // ноги
-           "....EPppPE..EPppPE......",
-           "....EOOOOE..EOOOOE......",   // взуття
-           "...EOOOOOE..EOOOOOE....." ],
-      /* px2 — кадр із заплющеними очима (права версія референса): самовдоволений
-         примружений вираз. Рушій періодично підміняє px на px2 (drawHero). */
-      px2:[".....E....E.E....E......",
-           "....EHE..EHEHE..EHE.....",
-           "...EHHHE.EHHEHHE.EHHHE..",
-           "..EHHHHHHHHHHHHHHHHHHE..",
-           ".EHHHHHHHHHHHHHHHHHHHHE.",
-           ".EHHHHHHHHHHHHHHHHHHHHE.",
-           "EHHHHHHHHHHHHHHHHHHHHHHE",
-           "EdHHHHHHHHHHHHHHHHHHHHdE",
-           "EHHHHSSSSSSSSSSSSSSHHHHE",
-           "EHHHSSSSSSSSSSSSSSSSHHHE",
-           ".EHHSSSSSSSSSSSSSSSSHHE.",
-           ".EHSBBBBBBBBBBBBBBBBSHE.",   // унібров
-           ".EHSSSSSSSSSSSSSSSSSSHE.",
-           ".EHSSBBBBBSSSSBBBBBSSHE.",   // заплющені очі (лінії)
-           ".EHSSSSSSSSSSSSSSSSSSHE.",
-           ".EHSSSSSSSSssSSSSSSSSHE.",   // ніс
-           ".EHssSSSSKKKKKKSSSSssHE.",   // самовдоволена усмішка + щетина
-           "..EsSSSSsKKKKsSSSSsE....",
-           "...EsSSSSSSSSSSSSSSsE...",
-           "..ECCCcTTTTTTTTcCCCE....",
-           ".ECCCCccTTTTTTTccCCCCE..",
-           "ECCCCCcTTTTTTTTTcCCCCCE.",
-           "ECCCCcccTTTTTTTcccCCCCE.",
-           ".ECCCE.CcTTTTTTcC.ECCCE.",
-           ".ECCCE.CYYYYYYYYC.ECCCE.",
-           "..ECCE.SccPPPPccS.ECCE..",
-           "..ECCccPPPPPPPPccCCE....",
-           "...EcCPPPPPPPPPPCcE.....",
-           "....EPPPPPPPPPPPPE......",
-           "....EPPPPpPPpPPPPE......",
-           "....EPPPPE..EPPPPE......",
-           "....EPppPE..EPppPE......",
-           "....EOOOOE..EOOOOE......",
-           "...EOOOOOE..EOOOOOE....." ] } },
+  rick: { name:"RIQ", body:"#a9d2e6", accent:"#86cfca",
+    sprite:{ w:27, h:37, scale:4,        // scale — цілий піксель-скейл; розмір героя = h*scale, без дробового розтягу
+      pal:{ '.':null, E:'#0d0d10', H:'#a9d2e6', i:'#cfe7f2', d:'#6f9fc0', S:'#cabda7', s:'#a89a82',
+            B:'#33414b', W:'#f2f5f6', K:'#7a3338', C:'#eef2f3', c:'#bcc6cc', T:'#86cfca',
+            Y:'#d3ab3c', P:'#6e5232', p:'#4d3a22', G:'#bfe0c8', O:'#15151a' },
+      /* px — кадр з відкритими очима (дефолт); px2 — заплющені (самовдоволений). Рушій періодично кліпає. */
+      px:[ ".......E........E..........",
+           ".......E..E.....E..E.......",
+           "......EHE.E....EHE.E.......",
+           "....E.EHHEHE...EHHEHE.E....",
+           "....EEHHHHHE.EEHiHHHE.E....",
+           "...EHHHiHHHHEHHHiHHHHEHEE..",
+           "...EHHHHiHHHHHHHHHdHHHHHE..",
+           "..EHHHdHHHHHHHHHHHHdHHHHHE.",
+           "..EHHHHHHHHHHHHHHHHHddHHHE.",
+           ".EHHHHHHHHHHHHHHHHHHHHdHHHE",
+           ".EHHHHSSSSSSSSSSSSSSSSHHHE.",
+           ".EHHHSSSSSSSSSSSSSSSSSSHHE.",
+           ".EHHSSSSBBBBBBBBBBBBBSSSSHE",
+           ".EHSSSSWWWWWSSSWWWWWSSSSHE.",
+           ".EHSSSSWWEWWSSSWWEWWSSSSHE.",
+           ".EHSSSSWWWWWSSSWWWWWSSSSHE.",
+           ".EHSSSSSSSSSSssSSSSSSSSSHE.",
+           ".EHsSSSSSSKKKKKKKSSSSSSsHE.",
+           "..EsSSSSSSsKKKKKsSSSSSsE...",
+           "...EsSSSSSSSSSSSSSSSSsE....",
+           "....EsSSSSSSSSSSSSSSsE.....",
+           "...ECCCccTTTTTTTTTTccCCCE..",
+           "..ECCCCcTTTTTTTTTTTTcCCCCE.",
+           ".ECCCEccTTTTTTTTTTTTccECCCE",
+           ".ECCCE.cCTTTTTTTTTTCc.ECCCE",
+           ".ECCCE.CcTTTTTTTTTTcC.ECCCE",
+           ".ECCCE.CYYYYYYYYYYYYC.ECCCE",
+           "..ESSE.SccPPPPPPPPccS.ESSE.",
+           "..ECCccPPPPPGGPPPPPccCCE...",
+           "...EcCPPPPPPGGPPPPPPCcE....",
+           "...EPPPPPPPPPPPPPPPPPPE....",
+           "...EPPPPPPE....EPPPPPPE....",
+           "..EPPPPPE......EPPPPPPE....",
+           "..EPpppE........EPpppE.....",
+           ".EOOOOE..........EOOOOE....",
+           ".EOOOOOE........EOOOOOE....",
+           "EOOOOOOE........EOOOOOOE..." ],
+      px2:[".......E........E..........",
+           ".......E..E.....E..E.......",
+           "......EHE.E....EHE.E.......",
+           "....E.EHHEHE...EHHEHE.E....",
+           "....EEHHHHHE.EEHiHHHE.E....",
+           "...EHHHiHHHHEHHHiHHHHEHEE..",
+           "...EHHHHiHHHHHHHHHdHHHHHE..",
+           "..EHHHdHHHHHHHHHHHHdHHHHHE.",
+           "..EHHHHHHHHHHHHHHHHHddHHHE.",
+           ".EHHHHHHHHHHHHHHHHHHHHdHHHE",
+           ".EHHHHSSSSSSSSSSSSSSSSHHHE.",
+           ".EHHHSSSSSSSSSSSSSSSSSSHHE.",
+           ".EHHSSSSBBBBBBBBBBBBBSSSSHE",
+           ".EHSSSSSSSSSSSSSSSSSSSSSHE.",
+           ".EHSSSSBBBBBSSSBBBBBSSSSHE.",
+           ".EHSSSSSSSSSSSSSSSSSSSSSHE.",
+           ".EHSSSSSSSSSSssSSSSSSSSSHE.",
+           ".EHssSSSSSKKKKKKKSSSSSssHE.",
+           "..EsSSSSSSsKKKKKsSSSSSsE...",
+           "...EsSSSSSSSSSSSSSSSSsE....",
+           "....EsSSSSSSSSSSSSSSsE.....",
+           "...ECCCccTTTTTTTTTTccCCCE..",
+           "..ECCCCcTTTTTTTTTTTTcCCCCE.",
+           ".ECCCEccTTTTTTTTTTTTccECCCE",
+           ".ECCCE.cCTTTTTTTTTTCc.ECCCE",
+           ".ECCCE.CcTTTTTTTTTTcC.ECCCE",
+           ".ECCCE.CYYYYYYYYYYYYC.ECCCE",
+           "..ESSE.SccPPPPPPPPccS.ESSE.",
+           "..ECCccPPPPPGGPPPPPccCCE...",
+           "...EcCPPPPPPGGPPPPPPCcE....",
+           "...EPPPPPPPPPPPPPPPPPPE....",
+           "...EPPPPPPE....EPPPPPPE....",
+           "..EPPPPPE......EPPPPPPE....",
+           "..EPpppE........EPpppE.....",
+           ".EOOOOE..........EOOOOE....",
+           ".EOOOOOE........EOOOOOE....",
+           "EOOOOOOE........EOOOOOOE..." ] } },
   doc: { name:"DOC", body:"#5fd0c4", accent:"#bff7ef",
     sprite:{ w:16, h:24, scale:6,
       pal:{ '.':null, H:'#34505c', h:'#22343d', S:'#e8c39a', s:'#c39e75', G:'#2a3a44',
@@ -480,7 +485,7 @@ function drawHero(p, isAtk){
   const sk=curSkin(), base=sk.sprite, zz=p.z||0, by=p.y-zz;
   // вираз обличчя: дефолт — відкриті очі (px); періодично кліпає в заплющені (px2)
   const blink = base.px2 && (tick%180)<30;               // ~раз на 3 с примружується на ~0.5 с
-  const spr = blink ? {w:base.w,h:base.h,pal:base.pal,px:base.px2} : base;
+  const spr = blink ? {w:base.w,h:base.h,scale:base.scale,pal:base.pal,px:base.px2} : base;
   const s=spr.scale||4;                                  // ЦІЛИЙ піксель-скейл: 1 піксель спрайта = s×s екранних, без дробового розтягу. Розмір героя = розмір спрайта × s
   drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280));
   const px=Math.max(1,Math.round(s));                    // 1 спрайт-піксель на екрані — щоб зсуви були піксельно-чисті
