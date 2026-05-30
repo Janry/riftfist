@@ -61,6 +61,10 @@ const THEME = {
 const HERO_SKINS = {
   rick: { name:"RIQ", body:"#a9d2e6", accent:"#8ed0cb",
     imgFrameSrc:["rick1.jpg?v=2","rick2.jpg?v=2"], imgDrawH:150,   // РЕАЛЬНІ картинки користувача (як є): rick1=відкриті очі, rick2=заплющені. Періодично кліпає. Нема файлів → px-спрайт нижче.
+    // Анімація удару/спецу — нормалізований 7-кадровий аркуш (горизонтальний, рівні клітинки, ноги по центру/низу).
+    // Кадри: 0 idle-стійка, 1 прямий удар, 2 джеб (рух), 3 захист/відновлення, 4 заряд зеленого кулака, 5 кидок-колба, 6 тримає колбу.
+    atkImgSrc:"rick_anim.png?v=1", atkFrames:7, atkDrawH:160,
+    atkFrameMap:{ a1:[0,1,3], a2:[0,1,3], a3:[0,1,3], air:[0,2,3], sp:[4,5,6] },   // на атаку: [кадр замаху, кадр активної фази, кадр відновлення]
     sprite:{ w:26, h:37, scale:4,
       pal:{ '.':null, E:'#0d0d10', H:'#a9d2e6', d:'#7fb0cf', S:'#cdbfa8', s:'#ab9d84', B:'#33414b',
             W:'#f4f6f7', K:'#7a3338', C:'#eef2f3', c:'#c2ccd2', T:'#8ed0cb',
@@ -342,6 +346,20 @@ function loadHeroSheet(key){ const sk=HERO_SKINS[key];
     im.src=src; });
 }
 for(const k in HERO_SKINS) loadHeroSheet(k);
+/* окремий аркуш анімації удару (atkImgSrc): один файл = горизонтальний аркуш на atkFrames кадрів.
+   Готується так само, як idle-аркуш (прибрати фон + білий силует для флешу). Нема файлу → null, рушій лишає idle-кадр. */
+const heroAtkSheet={};
+function loadAtkSheet(key){ const sk=HERO_SKINS[key]; heroAtkSheet[key]=null;
+  if(!sk.atkImgSrc) return; const frames=sk.atkFrames||1, im=new Image();
+  im.onload=function(){ try{
+    const oc=mkCanvas(im.width,im.height), ox=oc.getContext('2d'); ox.drawImage(im,0,0);
+    keyOutBackground(ox, im.width, im.height);
+    heroAtkSheet[key]=finishSheet(oc, Math.floor(im.width/frames), im.height, frames);
+  }catch(e){ heroAtkSheet[key]=null; } };
+  im.onerror=function(){ heroAtkSheet[key]=null; };
+  im.src=sk.atkImgSrc;
+}
+for(const k in HERO_SKINS) loadAtkSheet(k);
 function btnSkin(){ return {x:14, y:60, w:120, h:22}; }
 function inRect(px,py,r){ return px>=r.x && px<=r.x+r.w && py>=r.y && py<=r.y+r.h; }
 
@@ -526,25 +544,37 @@ function drawSpritePixels(spr, footX, footY, s, face, tint){
       const x0=Math.round(ox+c*s), x1=Math.round(ox+(c+1)*s);
       ctx.fillStyle=col; ctx.fillRect(x0,y0,x1-x0,y1-y0); } }
 }
+function blitSheetFrame(sheet, drawH, fi, cx, footY, face, flash){   // один кадр аркуша: масштаб по висоті, ноги по центру/низу, дзеркало по face, білий флеш
+  const sc=drawH/sheet.fh, dw=sheet.fw*sc, dh=sheet.fh*sc;
+  const dx=Math.round(cx-dw/2), dy=Math.round(footY-dh), sx=(fi%sheet.frames)*sheet.fw;
+  ctx.save(); ctx.imageSmoothingEnabled=false;
+  if(face<0){ ctx.translate(dx+dw,0); ctx.scale(-1,1);
+    ctx.drawImage(sheet.canvas, sx,0,sheet.fw,sheet.fh, 0,dy,dw,dh);
+    if(flash>0){ ctx.globalAlpha=Math.min(1,flash/6); ctx.drawImage(sheet.white, sx,0,sheet.fw,sheet.fh, 0,dy,dw,dh); } }
+  else { ctx.drawImage(sheet.canvas, sx,0,sheet.fw,sheet.fh, dx,dy,dw,dh);
+    if(flash>0){ ctx.globalAlpha=Math.min(1,flash/6); ctx.drawImage(sheet.white, sx,0,sheet.fw,sheet.fh, dx,dy,dw,dh); } }
+  ctx.restore();
+}
 function drawHero(p, isAtk){
   const sk=curSkin(), base=sk.sprite, zz=p.z||0, by=p.y-zz;
   const blink = (tick%180)<30;                            // ~раз на 3 с — кадр із заплющеними очима
-  const sheet=heroSheet[heroSkin];
+  const sheet=heroSheet[heroSkin], atkSheet=heroAtkSheet[heroSkin];
+  const attacking = p.state==='attack' && p.atkName && p.atkName!=='wpn';   // озброєний удар має власний рендер (drawWeaponInHand)
+  if(atkSheet && attacking){                              // === КАДР АНІМАЦІЇ УДАРУ/СПЕЦУ (за фазою атаки) ===
+    const tri=(sk.atkFrameMap&&sk.atkFrameMap[p.atkName])||[0,1,3];   // [замах, активна, відновлення]
+    const a=(p.atk&&p.atk.active)||[1,1];
+    const fi = p.t<a[0] ? tri[0] : (p.t<=a[1] ? tri[1] : tri[2]);     // фаза удару → кадр
+    const cx=p.x+p.face*16, footY=by+1;                  // невеликий випад уперед (як у idle-гілці)
+    drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280));
+    blitSheetFrame(atkSheet, sk.atkDrawH||sk.imgDrawH||150, fi, cx, footY, p.face, p.flash);
+    return;
+  }
   if(sheet){                                              // === РЕАЛЬНА картинка як спрайт (твій файл, без перемалювання) ===
-    const sc=(sk.imgDrawH||150)/sheet.fh, dw=sheet.fw*sc, dh=sheet.fh*sc;
     const fi=(blink && sheet.frames>1)?1:0;               // 0=відкриті очі, 1=заплющені
     let bob=0; if(p.state==='walk') bob=-(Math.floor(tick/5)%2)*3; else if(p.state==='idle') bob=-(Math.floor(tick/28)%2)*2;
-    const lunge=isAtk?p.face*16:0, cx=p.x+lunge, footY=by+bob+1;
+    const lunge=isAtk?p.face*16:0, cx=p.x+lunge, footY=by+bob+1;   // запасний випад, якщо аркуш удару не завантажився
     drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280));
-    const dx=Math.round(cx-dw/2), dy=Math.round(footY-dh);
-    ctx.save(); ctx.imageSmoothingEnabled=false;
-    const sx=fi*sheet.fw;
-    if(p.face<0){ ctx.translate(dx+dw,0); ctx.scale(-1,1);
-      ctx.drawImage(sheet.canvas, sx,0,sheet.fw,sheet.fh, 0,dy,dw,dh);
-      if(p.flash>0){ ctx.globalAlpha=Math.min(1,p.flash/6); ctx.drawImage(sheet.white, sx,0,sheet.fw,sheet.fh, 0,dy,dw,dh); } }
-    else { ctx.drawImage(sheet.canvas, sx,0,sheet.fw,sheet.fh, dx,dy,dw,dh);
-      if(p.flash>0){ ctx.globalAlpha=Math.min(1,p.flash/6); ctx.drawImage(sheet.white, sx,0,sheet.fw,sheet.fh, dx,dy,dw,dh); } }
-    ctx.restore();
+    blitSheetFrame(sheet, sk.imgDrawH||150, fi, cx, footY, p.face, p.flash);
     return;
   }
   // === запасний піксель-спрайт (якщо файлу нема) ===
