@@ -11,7 +11,7 @@
 
 Dear Warner Bros. Discovery / Adult Swim Licensing Team,
 
-My name is [Full Name], and I am a game developer at [Studio / Company — e.g. Playserv]. I am writing to formally inquire about licensing the *Rick and Morty* property for an original mobile video game.
+My name is [Full Name], and I am an independent game developer based in [City, Country]. I am writing to formally inquire about licensing the *Rick and Morty* property for an original mobile video game.
 
 **The concept.** A 2D side-scrolling beat 'em up in the spirit of *Double Dragon* and *Battletoads*, built around the show's core premise: every level is a different dimension. The multiverse format maps naturally onto level design — each dimension brings its own enemies, hazards, visual theme, mini-boss, and boss. Touch-first, designed for iPhone, with a short, replayable session loop.
 
@@ -21,13 +21,13 @@ My name is [Full Name], and I am a game developer at [Studio / Company — e.g. 
 
 **What I'm asking.** I would welcome the opportunity to discuss licensing terms — including any revenue share, approval process, and brand/content guidelines you require. I am fully prepared to work within your creative oversight and quality standards.
 
-I understand a project like this requires your approval at every stage, and I would be glad to provide a full design document, a demo build, and studio background.
+I understand a project like this requires your approval at every stage, and I would be glad to provide a full design document, a demo build, and my background and portfolio.
 
 Thank you for your time and consideration. I would be grateful for the chance to discuss this further.
 
 Best regards,
 [Full Name]
-[Title], [Studio / Company]
+Independent Game Developer
 [Email] · [Phone] · [Website / portfolio link]
 
 ---
@@ -38,7 +38,7 @@ Best regards,
 
 Шановна команда ліцензування Warner Bros. Discovery / Adult Swim,
 
-Мене звати [Ім'я Прізвище], я розробник ігор у [студія / компанія]. Звертаюся з офіційним запитом щодо ліцензування франшизи *Rick and Morty* для оригінальної мобільної гри.
+Мене звати [Ім'я Прізвище], я незалежний (інді) розробник ігор із [місто, країна]. Звертаюся з офіційним запитом щодо ліцензування франшизи *Rick and Morty* для оригінальної мобільної гри.
 
 **Концепт.** 2D beat 'em up у дусі *Double Dragon* і *Battletoads*, побудований навколо головної ідеї серіалу: кожен рівень — окремий вимір. Формат мультивсесвіту ідеально лягає на дизайн рівнів — кожен вимір має своїх ворогів, перешкоди, візуальну тему, міні-боса і боса. Керування тач, ціль — iPhone, коротка реіграбельна сесія.
 
@@ -50,7 +50,7 @@ Best regards,
 
 З повагою,
 [Ім'я Прізвище]
-[Посада], [Студія / Компанія]
+Незалежний розробник ігор
 [Email] · [Телефон] · [Сайт / портфоліо]
 
 ---
@@ -60,4 +60,4 @@ Best regards,
 - **Where to send.** Warner Bros. Discovery handles this through Global Consumer Products / Licensing. There is no public "make me a game" inbox — realistic routes: (1) WBD licensing contact form / business development, (2) an entertainment licensing agent or IP lawyer who can route it to the right desk, (3) a warm intro via someone in the industry. A cold email alone rarely lands.
 - **Set expectations.** Big IP holders usually license to studios with a track record and financial backing. A strong prototype + a clear, professional one-pager is your best shot. Be ready for "no" or silence.
 - **Don't ship anything using the IP until you have a signed agreement.** A pitch is fine; building/releasing the actual R&M-branded game before a deal is signed is still infringement.
-- **Attachments to prepare:** the playable prototype link, a 1–2 page design doc, and a short studio/credentials blurb.
+- **Attachments to prepare:** the playable prototype link, a 1–2 page design doc, and a short personal bio / credentials blurb.
