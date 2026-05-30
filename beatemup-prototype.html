@@ -60,7 +60,7 @@ const THEME = {
    px — рядки сітки, по w символів. Рушій малює масштабовані пікселі (drawSpritePixels). */
 const HERO_SKINS = {
   rick: { name:"RIQ", body:"#a9d2e6", accent:"#8ed0cb",
-    imgSrc:"rick.png?v=1", imgFrames:2, imgDrawH:150,   // ← РЕАЛЬНА картинка як спрайт: файл rick.png (2 кадри: 0=відкриті очі, 1=заплющені). Нема файлу → запасний px-спрайт нижче.
+    imgFrameSrc:["rick1.png?v=1","rick2.png?v=1"], imgDrawH:150,   // ← РЕАЛЬНІ картинки як спрайт: rick1.png (відкриті очі) + rick2.png (заплющені). Нема файлів → запасний px-спрайт нижче.
     sprite:{ w:22, h:36, scale:4,        // scale — цілий піксель-скейл; розмір героя = h*scale, без дробового розтягу
       pal:{ '.':null, E:'#0d0d10', H:'#a9d2e6', d:'#7fb0cf', S:'#cdbfa8', s:'#ab9d84', B:'#2f3d47',
             W:'#f4f6f7', K:'#7a3338', C:'#eef2f3', c:'#c2ccd2', T:'#8ed0cb',
@@ -312,18 +312,31 @@ function keyOutBackground(ox,w,h){ const id=ox.getImageData(0,0,w,h), d=id.data;
     if(x+1<w)st.push(p+1); if(x>0)st.push(p-1); if(y+1<h)st.push(p+w); if(y>0)st.push(p-w); }
   ox.putImageData(id,0,0);
 }
-function loadHeroSheet(key){ const sk=HERO_SKINS[key]; if(!sk||!sk.imgSrc){ heroSheet[key]=null; return; }
-  const im=new Image();
-  im.onload=function(){ const frames=sk.imgFrames||1, fw=Math.floor(im.width/frames), fh=im.height;
-    const oc=document.createElement('canvas'); oc.width=im.width; oc.height=im.height;
-    const ox=oc.getContext('2d'); ox.drawImage(im,0,0);
-    try{ keyOutBackground(ox, im.width, im.height); }catch(e){}
-    const wc=document.createElement('canvas'); wc.width=im.width; wc.height=im.height;     // білий силует для флешу
-    const wx=wc.getContext('2d'); wx.drawImage(oc,0,0); wx.globalCompositeOperation='source-in';
-    wx.fillStyle='#fff'; wx.fillRect(0,0,im.width,im.height);
-    heroSheet[key]={canvas:oc, white:wc, fw, fh, frames}; };
-  im.onerror=function(){ heroSheet[key]=null; };
-  im.src=sk.imgSrc;
+function mkCanvas(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+function finishSheet(canvas, fw, fh, frames){                 // + білий силует для флешу
+  const wc=mkCanvas(canvas.width, canvas.height), wx=wc.getContext('2d');
+  wx.drawImage(canvas,0,0); wx.globalCompositeOperation='source-in';
+  wx.fillStyle='#fff'; wx.fillRect(0,0,wc.width,wc.height);
+  return {canvas, white:wc, fw, fh, frames};
+}
+function loadHeroSheet(key){ const sk=HERO_SKINS[key];
+  const srcs = sk.imgFrameSrc ? sk.imgFrameSrc : (sk.imgSrc ? [sk.imgSrc] : null);
+  if(!srcs){ heroSheet[key]=null; return; }
+  const imgs=new Array(srcs.length); let loaded=0, failed=false;
+  function build(){ try{
+    if(srcs.length===1 && (sk.imgFrames||1)>1){             // один файл = горизонтальний аркуш
+      const im=imgs[0], frames=sk.imgFrames, fw=Math.floor(im.width/frames), fh=im.height;
+      const oc=mkCanvas(im.width,im.height), ox=oc.getContext('2d'); ox.drawImage(im,0,0);
+      keyOutBackground(ox, im.width, im.height); heroSheet[key]=finishSheet(oc,fw,fh,frames); return; }
+    const fw=imgs[0].width, fh=imgs[0].height, frames=imgs.length;     // окремий файл на кадр
+    const oc=mkCanvas(fw*frames, fh), ox=oc.getContext('2d');
+    imgs.forEach((im,i)=>ox.drawImage(im, i*fw, 0));
+    keyOutBackground(ox, fw*frames, fh); heroSheet[key]=finishSheet(oc,fw,fh,frames);
+  }catch(e){ heroSheet[key]=null; } }
+  srcs.forEach((src,idx)=>{ const im=new Image();
+    im.onload=function(){ imgs[idx]=im; if(++loaded===srcs.length && !failed) build(); };
+    im.onerror=function(){ failed=true; heroSheet[key]=null; };
+    im.src=src; });
 }
 for(const k in HERO_SKINS) loadHeroSheet(k);
 function btnSkin(){ return {x:14, y:60, w:120, h:22}; }
