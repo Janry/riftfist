@@ -60,6 +60,7 @@ const THEME = {
    px — рядки сітки, по w символів. Рушій малює масштабовані пікселі (drawSpritePixels). */
 const HERO_SKINS = {
   rick: { name:"RIQ", body:"#a9d2e6", accent:"#8ed0cb",
+    imgSrc:"rick.png?v=1", imgFrames:2, imgDrawH:150,   // ← РЕАЛЬНА картинка як спрайт: файл rick.png (2 кадри: 0=відкриті очі, 1=заплющені). Нема файлу → запасний px-спрайт нижче.
     sprite:{ w:22, h:36, scale:4,        // scale — цілий піксель-скейл; розмір героя = h*scale, без дробового розтягу
       pal:{ '.':null, E:'#0d0d10', H:'#a9d2e6', d:'#7fb0cf', S:'#cdbfa8', s:'#ab9d84', B:'#2f3d47',
             W:'#f4f6f7', K:'#7a3338', C:'#eef2f3', c:'#c2ccd2', T:'#8ed0cb',
@@ -295,6 +296,36 @@ const player={ x:W*0.3, y:H*0.7, z:0, vz:0, vx:0, vy:0, face:1, hp:BALANCE.playe
 let heroSkin='rick';
 const curSkin=()=>HERO_SKINS[heroSkin];
 function toggleSkin(){ heroSkin = heroSkin==='rick' ? 'doc' : 'rick'; }
+
+/* ---------- HERO IMAGE SHEETS (використати РЕАЛЬНУ картинку як спрайт, без перемальовування) ----------
+   Якщо у шкірі є imgSrc — вантажимо файл як спрайт-аркуш: ріжемо на imgFrames кадрів по горизонталі
+   (0 = відкриті очі, 1 = заплющені), прибираємо суцільний фон (заливка від країв до тёмного контуру),
+   і готуємо білий силует для флешу. Файлу нема / помилка → heroSheet[key]=null і рушій малює запасний px-спрайт. */
+const heroSheet={};
+function keyOutBackground(ox,w,h){ const id=ox.getImageData(0,0,w,h), d=id.data;
+  const seen=new Uint8Array(w*h), st=[]; const br=d[0],bg=d[1],bb=d[2];      // колір кутового пікселя = фон
+  const isBg=i=>Math.abs(d[i]-br)<46 && Math.abs(d[i+1]-bg)<46 && Math.abs(d[i+2]-bb)<46;
+  for(let x=0;x<w;x++){ st.push(x); st.push((h-1)*w+x); }
+  for(let y=0;y<h;y++){ st.push(y*w); st.push(y*w+w-1); }
+  while(st.length){ const p=st.pop(); if(seen[p]) continue; const i=p*4; if(!isBg(i)) continue;
+    seen[p]=1; d[i+3]=0; const x=p%w, y=(p/w)|0;
+    if(x+1<w)st.push(p+1); if(x>0)st.push(p-1); if(y+1<h)st.push(p+w); if(y>0)st.push(p-w); }
+  ox.putImageData(id,0,0);
+}
+function loadHeroSheet(key){ const sk=HERO_SKINS[key]; if(!sk||!sk.imgSrc){ heroSheet[key]=null; return; }
+  const im=new Image();
+  im.onload=function(){ const frames=sk.imgFrames||1, fw=Math.floor(im.width/frames), fh=im.height;
+    const oc=document.createElement('canvas'); oc.width=im.width; oc.height=im.height;
+    const ox=oc.getContext('2d'); ox.drawImage(im,0,0);
+    try{ keyOutBackground(ox, im.width, im.height); }catch(e){}
+    const wc=document.createElement('canvas'); wc.width=im.width; wc.height=im.height;     // білий силует для флешу
+    const wx=wc.getContext('2d'); wx.drawImage(oc,0,0); wx.globalCompositeOperation='source-in';
+    wx.fillStyle='#fff'; wx.fillRect(0,0,im.width,im.height);
+    heroSheet[key]={canvas:oc, white:wc, fw, fh, frames}; };
+  im.onerror=function(){ heroSheet[key]=null; };
+  im.src=sk.imgSrc;
+}
+for(const k in HERO_SKINS) loadHeroSheet(k);
 function btnSkin(){ return {x:14, y:60, w:120, h:22}; }
 function inRect(px,py,r){ return px>=r.x && px<=r.x+r.w && py>=r.y && py<=r.y+r.h; }
 
@@ -481,9 +512,27 @@ function drawSpritePixels(spr, footX, footY, s, face, tint){
 }
 function drawHero(p, isAtk){
   const sk=curSkin(), base=sk.sprite, zz=p.z||0, by=p.y-zz;
-  // вираз обличчя: дефолт — відкриті очі (px); періодично кліпає в заплющені (px2)
-  const blink = base.px2 && (tick%180)<30;               // ~раз на 3 с примружується на ~0.5 с
-  const spr = blink ? {w:base.w,h:base.h,scale:base.scale,pal:base.pal,px:base.px2} : base;
+  const blink = (tick%180)<30;                            // ~раз на 3 с — кадр із заплющеними очима
+  const sheet=heroSheet[heroSkin];
+  if(sheet){                                              // === РЕАЛЬНА картинка як спрайт (твій файл, без перемалювання) ===
+    const sc=(sk.imgDrawH||150)/sheet.fh, dw=sheet.fw*sc, dh=sheet.fh*sc;
+    const fi=(blink && sheet.frames>1)?1:0;               // 0=відкриті очі, 1=заплющені
+    let bob=0; if(p.state==='walk') bob=-(Math.floor(tick/5)%2)*3; else if(p.state==='idle') bob=-(Math.floor(tick/28)%2)*2;
+    const lunge=isAtk?p.face*16:0, cx=p.x+lunge, footY=by+bob+1;
+    drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280));
+    const dx=Math.round(cx-dw/2), dy=Math.round(footY-dh);
+    ctx.save(); ctx.imageSmoothingEnabled=false;
+    const sx=fi*sheet.fw;
+    if(p.face<0){ ctx.translate(dx+dw,0); ctx.scale(-1,1);
+      ctx.drawImage(sheet.canvas, sx,0,sheet.fw,sheet.fh, 0,dy,dw,dh);
+      if(p.flash>0){ ctx.globalAlpha=Math.min(1,p.flash/6); ctx.drawImage(sheet.white, sx,0,sheet.fw,sheet.fh, 0,dy,dw,dh); } }
+    else { ctx.drawImage(sheet.canvas, sx,0,sheet.fw,sheet.fh, dx,dy,dw,dh);
+      if(p.flash>0){ ctx.globalAlpha=Math.min(1,p.flash/6); ctx.drawImage(sheet.white, sx,0,sheet.fw,sheet.fh, dx,dy,dw,dh); } }
+    ctx.restore();
+    return;
+  }
+  // === запасний піксель-спрайт (якщо файлу нема) ===
+  const spr = (base.px2 && blink) ? {w:base.w,h:base.h,scale:base.scale,pal:base.pal,px:base.px2} : base;
   const s=spr.scale||4;                                  // ЦІЛИЙ піксель-скейл: 1 піксель спрайта = s×s екранних, без дробового розтягу. Розмір героя = розмір спрайта × s
   drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280));
   const px=Math.max(1,Math.round(s));                    // 1 спрайт-піксель на екрані — щоб зсуви були піксельно-чисті
