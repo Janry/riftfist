@@ -59,43 +59,45 @@ const THEME = {
    sprite: { w,h — нативна сітка в пікселях; pal — символ→колір ('.'/відсутній = прозоро);
    px — рядки сітки, по w символів. Рушій малює масштабовані пікселі (drawSpritePixels). */
 const HERO_SKINS = {
-  rick: { name:"RIQ", body:"#cfe0e8", accent:"#aecfdc",
-    sprite:{ w:20, h:32,
-      pal:{ '.':null, H:'#aecfdc', h:'#88a8b7', d:'#5f8190', S:'#f0cda3', s:'#cda079',
-            B:'#5f8190', E:'#20242c', W:'#eef3f5', K:'#7c4a44', C:'#f1f5f7', c:'#c2ced5',
-            T:'#6fa6b0', t:'#4f868f', P:'#9c7a52', p:'#6f5436', O:'#23282f' },
-      px:[ "....H....H...H......",   // гострий полум'яний чуб
-           "...HHH..HHH..HHH....",
-           "..HHHHHHHHHHHHHHHH..",
-           ".HHHHHHHHHHHHHHHHHH.",
-           ".HHHHHHHHHHHHHHHHHH.",
-           ".dHHHHHHHHHHHHHHHHd.",
-           "..dHHHHHHHHHHHHHHd..",
-           "..HHHHSSSSSSSSHHHH..",   // лоб
-           "..dHHSSSSSSSSSSHHd..",
-           "...HSBBBBBBBBBBSH...",   // тонкий унібров
-           "...HSWWWWSSWWWWSH...",   // великі білі очі
-           "...HSWWEWSSWEWWSH...",   // маленькі зіниці
-           "...HSSSSSSSSSSSSSH..",
-           "...HSSSSSssSSSSSH...",   // ніс
-           "....SSSKKKKKSSSS....",   // рот
-           ".....sSSSSSSSSs.....",
-           "......sSSSSSSs......",   // підборіддя
-           ".....CCcSSSScCC.....",   // шия + комір
-           "....CCCcTTTTcCCC....",   // плечі + сорочка
-           "...CCCCcTTttCcCCC...",
-           "..sCCCCCTTTTCCCCCs..",   // руки
-           "..SCCCCCCTTCCCCCCS..",   // кисті
-           "...CCCCCCTTCCCCCC...",
-           "...CCCCcCTTCcCCCC...",
-           "...CCCCCCCCCCCCCC...",
-           "....CCCCPPPPCCCC....",   // поділ + штани
-           ".....CPPPPPPPPC.....",
-           "....PPPPPPPPPPPP....",
-           ".....PPPP..PPPP.....",   // ноги
-           ".....PPpp..ppPP.....",
-           ".....OOOO..OOOO.....",   // взуття
-           ".....OOOO..OOOO....." ] } },
+  rick: { name:"RIQ", body:"#bcd9ec", accent:"#8ad2cd",
+    sprite:{ w:24, h:34,
+      pal:{ '.':null, E:'#16161c', H:'#bcd9ec', d:'#7ea7c2', S:'#d9c3a3', s:'#b49b78',
+            B:'#46545e', W:'#f5f8f9', K:'#7c3a3a', C:'#f1f4f5', c:'#c9d2d7',
+            T:'#8ad2cd', Y:'#d8b23f', P:'#6d5130', p:'#4d3920', O:'#1c1c22' },
+      px:[ ".....E....E.E....E......",   // гострий полум'яний чуб (спайки)
+           "....EHE..EHEHE..EHE.....",
+           "...EHHHE.EHHEHHE.EHHHE..",
+           "..EHHHHHHHHHHHHHHHHHHE..",   // передня V-виїмка над чолом (вище)
+           ".EHHHHHHHHHHHHHHHHHHHHE.",
+           ".EHHHHHHHHHHHHHHHHHHHHE.",
+           "EHHHHHHHHHHHHHHHHHHHHHHE",
+           "EdHHHHHHHHHHHHHHHHHHHHdE",   // боковий блакитний відтінок
+           "EHHHHSSSSSSSSSSSSSSHHHHE",   // лоб
+           "EHHHSSSSSSSSSSSSSSSSHHHE",
+           ".EHHSSSSSSSSSSSSSSSSHHE.",
+           ".EHSBBBBBBBBBBBBBBBBSHE.",   // унібров
+           ".EHSSWWWWWSSSSWWWWWSSHE.",   // великі білі очі
+           ".EHSSWWEWWSSSSWWEWWSSHE.",   // зіниці
+           ".EHSSWWWWWSSSSWWWWWSSHE.",
+           ".EHSSSSSSSSssSSSSSSSSHE.",   // ніс
+           ".EHsSSSSSKKKKKKSSSSSsHE.",   // відкритий рот
+           "..EsSSSSsKKKKsSSSSsE....",   // підборіддя
+           "...EsSSSSSSSSSSSSSSsE...",   // шия
+           "..ECCCcTTTTTTTTcCCCE....",   // комір + сорочка (V)
+           ".ECCCCccTTTTTTTccCCCCE..",   // плечі (халат)
+           "ECCCCCcTTTTTTTTTcCCCCCE.",
+           "ECCCCcccTTTTTTTcccCCCCE.",   // руки розходяться
+           ".ECCCE.CcTTTTTTcC.ECCCE.",   // лікті в боки (руки в боки)
+           ".ECCCE.CYYYYYYYYC.ECCCE.",   // жовтий пояс
+           "..ECCE.SccPPPPccS.ECCE..",   // кисті на стегнах
+           "..ECCccPPPPPPPPccCCE....",   // поділ халата + штани
+           "...EcCPPPPPPPPPPCcE.....",
+           "....EPPPPPPPPPPPPE......",   // штани
+           "....EPPPPpPPpPPPPE......",
+           "....EPPPPE..EPPPPE......",   // ноги
+           "....EPppPE..EPppPE......",
+           "....EOOOOE..EOOOOE......",   // взуття
+           "...EOOOOOE..EOOOOOE....." ] } },
   doc: { name:"DOC", body:"#5fd0c4", accent:"#bff7ef",
     sprite:{ w:16, h:24,
       pal:{ '.':null, H:'#34505c', h:'#22343d', S:'#e8c39a', s:'#c39e75', G:'#2a3a44',
