@@ -43,10 +43,10 @@ const THEME = {
   },
   // виміри як дані: косметика (назва/настрій/палітра/фон) + склад ворогів. dim циклічно індексує масив.
   dimensions: [
-    { name:"НЕОНОВІ КАНАЛИ", flavor:"мокрий бетон і дешеве світло", bg:["#161a2b","#0d1322"], floor:"rgba(120,200,255,.05)", waves:3, mix:[['grunt',3],['rusher',2]] },
-    { name:"ЖЕЛЕ-СЕКТОР",    flavor:"тут усе трохи липке",          bg:["#291634","#150b1d"], floor:"rgba(255,150,220,.06)", waves:3, mix:[['grunt',2],['brute',2],['rusher',1]] },
-    { name:"СЕРВЕРНЕ ПЕКЛО",  flavor:"гул кулерів і чиста ненависть", bg:["#102220","#07120e"], floor:"rgba(120,255,200,.05)", waves:4, mix:[['rusher',2],['ranged',2],['grunt',2]] },
-    { name:"ІРЖАВИЙ ПОЯС",    flavor:"метал, пил, нічого живого",    bg:["#241a12","#130c07"], floor:"rgba(255,200,120,.05)", waves:3, mix:[['brute',2],['grunt',2],['ranged',1]] }
+    { name:"НЕОНОВІ КАНАЛИ", flavor:"мокрий бетон і дешеве світло", bg:["#161a2b","#0d1322"], floor:"rgba(120,200,255,.05)", neon:"#37e0ff", waves:3, mix:[['grunt',3],['rusher',2]] },
+    { name:"ЖЕЛЕ-СЕКТОР",    flavor:"тут усе трохи липке",          bg:["#291634","#150b1d"], floor:"rgba(255,150,220,.06)", neon:"#ff67c0", waves:3, mix:[['grunt',2],['brute',2],['rusher',1]] },
+    { name:"СЕРВЕРНЕ ПЕКЛО",  flavor:"гул кулерів і чиста ненависть", bg:["#102220","#07120e"], floor:"rgba(120,255,200,.05)", neon:"#5dffb0", waves:4, mix:[['rusher',2],['ranged',2],['grunt',2]] },
+    { name:"ІРЖАВИЙ ПОЯС",    flavor:"метал, пил, нічого живого",    bg:["#241a12","#130c07"], floor:"rgba(255,200,120,.05)", neon:"#ffb24a", waves:3, mix:[['brute',2],['grunt',2],['ranged',1]] }
   ]
 };
 
@@ -166,16 +166,30 @@ function pollInput(){ let kx=(keys['KeyD']?1:0)-(keys['KeyA']?1:0), ky=(keys['Ke
   if(joyId!==null){ kx=joyVec.x; ky=joyVec.y; } const len=Math.hypot(kx,ky);
   input.moving=len>BALANCE.input.moveDeadzone; input.mx=input.moving?kx:0; input.my=input.moving?ky:0; }
 
-/* ---------- СВІТ ---------- */
+/* ---------- СВІТ + КАМЕРА (бічний скрол, лок-арени по хвилях) ---------- */
 const FIELD=()=>({top:H*BALANCE.field.top, bottom:H*BALANCE.field.bottom});
 let screenShake=0, hitStop=0, combo=0, comboTimer=0, tick=0;
+let camX=0, arenaX=0, advanceTarget=0;                  // camX — лівий край камери (світові коорд.); arenaX — поточна залочена арена
+const SCROLLSTEP=()=>Math.round(W*0.55);                // «пів екрана» вперед на хвилю
+const BOUND={lo:0,hi:0};                                // межі руху (оновлює updateCamera)
+function updateCamera(){
+  const mx=BALANCE.field.marginX;
+  if(phase==='advance'){                                // камеру тягне гравець уперед до наступної арени
+    camX=Math.max(arenaX, Math.min(advanceTarget, player.x - W*0.5));
+    BOUND.lo=camX+mx; BOUND.hi=advanceTarget+W-mx;
+    if(camX>=advanceTarget-0.5){                         // доїхали на пів екрана → фіксуємо й запускаємо хвилю
+      arenaX=advanceTarget; camX=arenaX; phase='fight';
+      if(weapons.length<BALANCE.weapon.maxOnField && Math.random()<BALANCE.weapon.dropChance) spawnWeapon();
+      spawnNextWave(); }
+  } else { camX=arenaX; BOUND.lo=camX+mx; BOUND.hi=camX+W-mx; }   // intro/fight/cleared — екран зафіксовано
+}
 function clampField(e){ const f=FIELD(); e.y=Math.max(f.top,Math.min(f.bottom,e.y));
-  e.x=Math.max(BALANCE.field.marginX,Math.min(W-BALANCE.field.marginX,e.x)); }
+  e.x=Math.max(BOUND.lo,Math.min(BOUND.hi,e.x)); }
 
 /* ---------- ЗБРОЯ ---------- */
 let weapons=[], projectiles=[];
 function spawnWeapon(type){ const f=FIELD();
-  weapons.push({ x:90+Math.random()*(W-180), y:f.top+Math.random()*(f.bottom-f.top),
+  weapons.push({ x:arenaX+90+Math.random()*(W-180), y:f.top+Math.random()*(f.bottom-f.top),
     type:type||(Math.random()<0.5?'pipe':'blade'), bob:Math.random()*6 }); }
 
 /* ---------- ГРАВЕЦЬ ---------- */
@@ -352,7 +366,7 @@ function hurtPlayer(dmg,kb,dir,shake){     // удар по гравцю (міл
 
 function updateProjectiles(){
   for(const p of projectiles){ if(p.dead) continue; p.x+=p.vx; p.spin+=BALANCE.weapon.spin;
-    if(p.x<-30||p.x>W+30){ p.dead=true; continue; }
+    if(p.x<camX-30||p.x>camX+W+30){ p.dead=true; continue; }
     if(p.foe){                                               // ворожий снаряд — б'є гравця
       if(Math.abs(player.x-p.x)<BALANCE.weapon.projHit.x && Math.abs(player.y-p.y)<BALANCE.weapon.projHit.y
          && hurtPlayer(p.dmg,p.kb,p.face,BALANCE.feel.shakeBase+p.kb*BALANCE.feel.shakeKbMul)) p.dead=true;
@@ -367,7 +381,7 @@ let enemies=[]; let wave=0;
 let dim=1, dimWave=0, phase='intro', phaseT=0;       // структура виміру: фаза (intro|fight|cleared) + лічильники
 function spawnEnemy(typeKey){ const A=ENEMIES[typeKey], f=FIELD();
   const e={ type:typeKey, boss:A.boss, mini:false,
-    x:Math.random()<0.5?-20:W+20, y:f.top+Math.random()*(f.bottom-f.top),
+    x:Math.random()<0.5?arenaX-20:arenaX+W+20, y:f.top+Math.random()*(f.bottom-f.top),
     z:0,vx:0,vy:0, hp:A.hp, hpMax:A.hp, state:'approach', t:0, dead:false, deadT:0,
     flash:0, face:1, speed:A.speedMin+Math.random()*A.speedRnd, cool:Math.random()*40 };
   enemies.push(e); return e; }
@@ -376,7 +390,9 @@ function dimWaves(){ return curDim().waves || BALANCE.dimension.waves; }
 function pickEnemyType(){ const mix=curDim().mix; let tot=0; for(const m of mix) tot+=m[1]; let r=Math.random()*tot;
   for(const m of mix){ if((r-=m[1])<0) return m[0]; } return mix[0][0]; }                // зважений вибір зі складу виміру
 function startDimension(){ phase='intro'; phaseT=BALANCE.dimension.introDur; dimWave=0;
-  enemies=[]; projectiles=[]; weapons=[]; }
+  enemies=[]; projectiles=[]; weapons=[];
+  camX=0; arenaX=0; advanceTarget=0; BOUND.lo=BALANCE.field.marginX; BOUND.hi=W-BALANCE.field.marginX;
+  player.x=W*0.3; player.y=H*0.7; player.z=0; player.vz=0; player.state='idle'; }
 function spawnNextWave(){ dimWave++; const nw=dimWaves();
   if(dimWave===nw+2){ spawnEnemy('boss'); spawnEnemy('grunt'); }                       // фінальний бос + ескорт
   else if(dimWave===nw+1){ const m=spawnEnemy('brute'); m.mini=true; m.hp=m.hpMax=Math.round(ENEMIES.brute.hp*1.6); spawnEnemy('rusher'); }  // міні-бос
@@ -385,10 +401,10 @@ function spawnNextWave(){ dimWave++; const nw=dimWaves();
 function director(){                                                                    // керує дугою виміру
   if(phase==='intro'){ if(--phaseT<=0){ phase='fight'; spawnNextWave(); } return; }
   if(phase==='cleared'){ if(--phaseT<=0){ dim++; player.hp=Math.min(player.hpMax,player.hp+BALANCE.dimension.healOnClear); startDimension(); } return; }
-  if(enemies.length===0){                                                               // хвилю зачищено
+  if(phase==='advance') return;                                                         // камера веде гравця до наступної арени (лок+спавн в updateCamera)
+  if(phase==='fight' && enemies.length===0){                                            // хвилю зачищено
     if(dimWave>=dimWaves()+2){ phase='cleared'; phaseT=BALANCE.dimension.clearedDur; return; }  // бос упав → вимір пройдено
-    if(weapons.length<BALANCE.weapon.maxOnField && Math.random()<BALANCE.weapon.dropChance) spawnWeapon();
-    spawnNextWave(); } }
+    phase='advance'; advanceTarget=arenaX+SCROLLSTEP(); } }                              // → скрол на пів екрана вперед
 function updateEnemy(en){
   const A=ENEMIES[en.type];
   if(en.dead){ en.deadT++; return; } if(en.flash>0) en.flash--; en.t++;
@@ -508,14 +524,51 @@ function drawButton(c,label,pressed){ ctx.save();
   ctx.globalAlpha=.85; ctx.fillStyle='#fff'; ctx.font='600 13px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(label,c.x,c.y); ctx.restore(); }
 
-function render(){
-  const D=curDim();
+/* процедурний арт рівня: паралакс-шари (скайлайн → неон-вивіски → канальна стіна/труби → мокра підлога) */
+function hashi(n){ const x=Math.sin(n*127.1+11.7)*43758.5453; return x-Math.floor(x); }
+function bgLayer(p,T,fn){ const base=camX*p, mod=((base%T)+T)%T, start=Math.floor(base/T);
+  for(let k=-1; k*T-mod<W+T; k++) fn(Math.round(k*T-mod), start+k); }
+function drawLevelBG(D){
+  const neon=D.neon||'#37e0ff', f=FIELD(), hor=f.top-46;
   const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,D.bg[0]); g.addColorStop(1,D.bg[1]);
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  const f=FIELD(); ctx.fillStyle=D.floor||'rgba(255,255,255,.03)'; ctx.fillRect(0,f.top-30,W,H-f.top+30);
+  const gg=ctx.createLinearGradient(0,hor-90,0,hor+30); gg.addColorStop(0,'rgba(0,0,0,0)'); gg.addColorStop(1,neon);
+  ctx.save(); ctx.globalAlpha=.10; ctx.fillStyle=gg; ctx.fillRect(0,hor-90,W,120); ctx.restore();
+  ctx.save();                                          // далекий скайлайн + неонові вікна
+  bgLayer(0.25,150,(x,n)=>{ const h=40+hashi(n)*120, w=66+hashi(n*1.7)*60, y=hor-h;
+    ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(x,y,w,h+70);
+    ctx.fillStyle=neon;
+    for(let wy=y+8; wy<hor-6; wy+=12) for(let wx=x+6; wx<x+w-5; wx+=11){ if(hashi(n*9+wx*0.3+wy)>0.62){ ctx.globalAlpha=.45; ctx.fillRect(wx,wy,4,5);} }
+    ctx.globalAlpha=1; });
+  ctx.restore();
+  ctx.save();                                          // неонові вивіски (сяйво + мерехтіння)
+  bgLayer(0.42,360,(x,n)=>{ if(hashi(n*3.3)<0.45) return; const y=hor-72-hashi(n)*64, w=24+hashi(n*2)*40, h=12+hashi(n*5)*26;
+    const fl=0.6+0.4*Math.sin(tick*0.15+n);
+    ctx.globalAlpha=.18*fl; ctx.fillStyle=neon; ctx.fillRect(x-6,y-6,w+12,h+12);
+    ctx.globalAlpha=.85*fl; ctx.fillRect(x,y,w,h); ctx.globalAlpha=1; });
+  ctx.restore();
+  ctx.save();                                          // канальна стіна + труби/стійки
+  ctx.fillStyle='rgba(0,0,0,.26)'; ctx.fillRect(0,hor,W,f.top-hor+8);
+  bgLayer(0.6,200,(x,n)=>{ ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=8; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(x,hor+6); ctx.lineTo(x+44,hor+6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+92,hor); ctx.lineTo(x+92,f.top+4); ctx.stroke();
+    ctx.fillStyle=neon; ctx.globalAlpha=.5; ctx.fillRect(x+89,hor+10+hashi(n)*28,6,3); ctx.globalAlpha=1; });
+  ctx.restore();
+  ctx.fillStyle=D.bg[1]; ctx.fillRect(0,f.top-2,W,H-f.top+2);     // мокра підлога
+  ctx.save(); ctx.fillStyle=D.floor||'rgba(255,255,255,.04)'; ctx.fillRect(0,f.top-2,W,H-f.top+2);
+  ctx.strokeStyle=neon; ctx.globalAlpha=.65; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(0,f.top); ctx.lineTo(W,f.top); ctx.stroke();  // неонова ватерлінія
+  ctx.globalAlpha=.09; ctx.lineWidth=2;                          // вертикальні лінії глибини (скрол із камерою)
+  bgLayer(1.0,90,(x)=>{ ctx.beginPath(); ctx.moveTo(x,f.top+6); ctx.lineTo(x-12,f.bottom+34); ctx.stroke(); });
+  ctx.globalAlpha=.06; for(let i=1;i<6;i++){ const yy=f.top+i*i*4; ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(W,yy); ctx.stroke(); }
+  ctx.restore();
+}
+function render(){
+  const D=curDim();
+  drawLevelBG(D);
 
   ctx.save();
   if(screenShake>0.3) ctx.translate((Math.random()-.5)*screenShake,(Math.random()-.5)*screenShake);
+  ctx.translate(-camX,0);                              // світ малюється відносно камери
   for(const g2 of weapons) drawGroundWeapon(g2);
   const all=[{e:player,p:true},...enemies.map(e=>({e,p:false}))]; all.sort((a,b)=>a.e.y-b.e.y);
   for(const o of all){
@@ -548,7 +601,7 @@ function render(){
     for(let i=0;i<player.weapon.uses;i++) ctx.fillRect(78+i*9,45,6,9); }
   else { ctx.fillStyle='#5b6480'; ctx.font='600 11px system-ui'; ctx.fillText('без зброї',16,53); }
   ctx.textAlign='right'; ctx.fillStyle='#9aa4bf'; ctx.font='700 13px system-ui';
-  const _nw=dimWaves(), _st = phase==='intro'?'готуйся' : phase==='cleared'?'зачищено' : dimWave>=_nw+2?'БОС' : dimWave>=_nw+1?'міні-бос' : 'хвиля '+dimWave+'/'+_nw;
+  const _nw=dimWaves(), _st = phase==='intro'?'готуйся' : phase==='cleared'?'зачищено' : phase==='advance'?'вперед →' : dimWave>=_nw+2?'БОС' : dimWave>=_nw+1?'міні-бос' : 'хвиля '+dimWave+'/'+_nw;
   ctx.fillText('ВИМІР '+dim+' · '+_st, W-16, 24);
 
   const boss=enemies.find(e=>e.boss && !e.dead);
@@ -569,6 +622,9 @@ function render(){
   if(phase==='cleared'){ ctx.save(); ctx.textAlign='center'; ctx.globalAlpha=Math.min(1,phaseT/24);
     ctx.fillStyle='#bff7ef'; ctx.font='800 34px system-ui'; ctx.fillText('ВИМІР ЗАЧИЩЕНО',W/2,H*0.40);
     ctx.fillStyle='#9aa4bf'; ctx.font='600 14px system-ui'; ctx.fillText('наступний портал…',W/2,H*0.40+28); ctx.restore(); }
+  if(phase==='advance'){ ctx.save(); ctx.textAlign='center'; const a=0.55+0.45*Math.sin(tick*0.18);
+    ctx.globalAlpha=a; ctx.fillStyle=curDim().neon||'#fff'; ctx.font='800 30px system-ui'; ctx.fillText('ВПЕРЕД  →',W/2,H*0.30);
+    ctx.globalAlpha=.6*a; ctx.fillStyle='#cfe9e4'; ctx.font='600 13px system-ui'; ctx.fillText('іди праворуч',W/2,H*0.30+24); ctx.restore(); }
 
   drawJoystick();
   drawButton(btnLight(), player.weapon?'МАХ':'УДАР', lightTouchId!==null);
@@ -580,7 +636,7 @@ function render(){
 function frame(){
   pollInput();
   if(hitStop>0){ hitStop--; }
-  else { updatePlayer(); for(const en of enemies) updateEnemy(en); updateProjectiles(); cullDead(); director();
+  else { updateCamera(); updatePlayer(); for(const en of enemies) updateEnemy(en); updateProjectiles(); cullDead(); director();
     if(comboTimer>0){ comboTimer--; if(comboTimer===0) combo=0; }
     if(player.hp<=0){ player.hp=player.hpMax; player.x=W*0.3; player.y=H*0.7; player.z=0; player.vz=0;
       player.state='idle'; player.weapon=null; player.breakAfter=false; combo=0; startDimension(); } }   // смерть → рестарт виміру
