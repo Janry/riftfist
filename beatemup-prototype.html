@@ -707,7 +707,6 @@ function render(){
 }
 
 /* ---------- ЦИКЛ ---------- */
-startDimension();
 function frame(){
   pollInput();
   if(hitStop>0){ hitStop--; }
@@ -719,7 +718,20 @@ function frame(){
   lightEdge=false; specialEdge=false; jumpEdge=false; tick++;
   render(); requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
+/* старт лише коли картинки героя завантажені — інакше встиг би блимнути запасний піксель-спрайт */
+const _bootStart=performance.now();
+function heroAssetsReady(){ const sk=HERO_SKINS[heroSkin];
+  if((sk.imgFrameSrc||sk.imgSrc) && heroSheet[heroSkin]===undefined) return false;   // ще вантажиться (undefined); після load/error стає визначеним
+  if(sk.atkSrc && heroAtk[heroSkin]===undefined) return false;
+  return true; }
+function bootHero(){
+  if(heroAssetsReady() || performance.now()-_bootStart>4000){ startDimension(); requestAnimationFrame(frame); return; }
+  ctx.fillStyle='#0d0f17'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#6b7390'; ctx.font='600 13px system-ui'; ctx.textAlign='center';
+  ctx.fillText('Завантаження…', W/2, H/2); ctx.textAlign='left';
+  requestAnimationFrame(bootHero);
+}
+bootHero();
 </script>
 </body>
 </html>
