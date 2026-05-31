@@ -23,7 +23,7 @@
    BEAT 'EM UP — прототип ядра  (v5: баланс винесено в data-шар)
    ------------------------------------------------------------
    DATA LAYER (нижче) — все, що "наповнюється":
-     THEME   = IP-залежна косметика (імена/кольори) — свапабельна.
+     THEME   = косметика (імена/кольори/виміри).
      BALANCE = чисельні ручки відчуття/балансу (НЕ вшивати в код).
      WEAPONS = таблиця зброї (дані).
      ATTACKS = таблиця атак гравця (дані).
@@ -34,7 +34,6 @@
 
 /* ---------- THEME (косметика, IP сюди) ---------- */
 const THEME = {
-  hero:    { name:"DOC", body:"#5fd0c4", accent:"#bff7ef" },
   enemies: {                                  // косметика за ключем архетипу
     grunt:  { name:"GROMBLE",  body:"#c2607f", accent:"#ffd2e0" },
     rusher: { name:"SKITTER",  body:"#d9824f", accent:"#ffd9b0" },
@@ -51,46 +50,14 @@ const THEME = {
   ]
 };
 
-/* ---------- HERO_SKINS (спрайт-як-дані; IP-залежна косметика — свапабельна) ----------
-   Рішення (явне, фіксує зняте IP-обмеження для дев-білду): тримаємо ДВІ шкіри героя
-   й перемикаємось між ними наживо (клавіша T або тап «АРТ»). 'rick' — впізнаваний
-   R&M-оммаж (дефолт зараз). 'doc' — оригінал «у дусі», IP-safe версія-страховка.
-   Новий герой = ще один рядок тут, без правки рушія. Стиль — DD&BT (16-біт пікселі).
-   sprite: { w,h — нативна сітка в пікселях; pal — символ→колір ('.'/відсутній = прозоро);
-   px — рядки сітки, по w символів. Рушій малює масштабовані пікселі (drawSpritePixels). */
+/* ---------- HERO_SKINS (спрайт-як-дані) ----------
+   Герой рендериться з реальних картинок (imgFrameSrc — кадри idle/кліпання; atkSrc — аркуш ударів).
+   Новий герой = ще один рядок тут, без правки рушія. */
 const HERO_SKINS = {
   rick: { name:"RIQ", body:"#a9d2e6", accent:"#8ed0cb",
-    imgFrameSrc:["rick1.jpg?v=2","rick2.jpg?v=2"], imgDrawH:150,   // РЕАЛЬНІ картинки користувача (як є): rick1=відкриті очі, rick2=заплющені. Періодично кліпає. (Старий мальований px-спрайт видалено — рендер лише з цих файлів.)
+    imgFrameSrc:["rick1.jpg?v=2","rick2.jpg?v=2"], imgDrawH:150,   // картинки героя: rick1=відкриті очі, rick2=заплющені. Періодично кліпає.
     atkSrc:"rick3.png?v=1", atkFrames:7,   // аркуш атаки (7 поз): 0 стійка,1 джеб,2 прямий,3 кулак-стійка,4-6 зілля(спец). Легкий удар→1-2, спец/зброя→4-6.
-  },
-  doc: { name:"DOC", body:"#5fd0c4", accent:"#bff7ef",
-    sprite:{ w:16, h:24, scale:6,
-      pal:{ '.':null, H:'#34505c', h:'#22343d', S:'#e8c39a', s:'#c39e75', G:'#2a3a44',
-            A:'#bff7ef', J:'#5fd0c4', j:'#3fa89c', O:'#243038', K:'#8a4f48' },
-      px:[ "......HHHH......",   // коротка зачіска (інший силует, не Рік)
-           "....HHHHHHHH....",
-           "...HHHHHHHHHH...",
-           "..HHHSSSSSSHHH..",
-           "...HSSSSSSSSH...",
-           "...SGGGGGGGGS...",   // окуляри (замість унібрів)
-           "...SGAAGGAAGS...",
-           "...SSSSSSSSSS...",
-           "....SSKKKKSS....",   // рот
-           "....sSSSSSSs....",
-           ".....AJJJJA.....",   // комір
-           "...JJAJJJJAJJ...",   // плечі комбінезона
-           "..JJJJJJJJJJJJ..",
-           "..sJJjJJJJjJJs..",
-           "..SJJAAJJAAJJS..",   // пояс-акцент + кисті
-           "...JJJJJJJJJJ...",
-           "...JJjJJJJjJJ...",
-           "...JJJJ..JJJJ...",   // ноги
-           "...JJjJ..JjJJ...",
-           "...JJjJ..JjJJ...",
-           "...JJj....jJJ...",
-           "...Jj......jJ...",
-           "...OOO....OOO...",   // черевики
-           "...OOO....OOO..." ] } }
+  }
 };
 
 /* ---------- BALANCE (ручки відчуття) ---------- */
@@ -174,7 +141,6 @@ function btnSpecial(){ return {x:W-112, y:H-188, r:38}; }
 function inCircle(px,py,c){ const dx=px-c.x,dy=py-c.y; return dx*dx+dy*dy<=c.r*c.r; }
 function onTouchStart(e){ e.preventDefault();
   for(const t of e.changedTouches){ const x=t.clientX,y=t.clientY;
-    if(inRect(x,y,btnSkin())){ toggleSkin(); continue; }              // тап «АРТ» — перемкнути шкіру
     if(inCircle(x,y,btnSpecial())){ specialTouchId=t.identifier; specialEdge=true; continue; }
     if(inCircle(x,y,btnJump())){ jumpTouchId=t.identifier; jumpEdge=true; continue; }
     if(inCircle(x,y,btnLight())){ lightTouchId=t.identifier; lightEdge=true; continue; }
@@ -194,7 +160,7 @@ cv.addEventListener('touchmove',onTouchMove,{passive:false});
 cv.addEventListener('touchend',onTouchEnd,{passive:false});
 cv.addEventListener('touchcancel',onTouchEnd,{passive:false});
 const keys={};
-addEventListener('keydown',e=>{ if(!keys[e.code]){ if(e.code==='KeyJ')lightEdge=true; if(e.code==='KeyK')specialEdge=true; if(e.code==='KeyL'||e.code==='Space')jumpEdge=true; if(e.code==='KeyT')toggleSkin(); } keys[e.code]=true; });
+addEventListener('keydown',e=>{ if(!keys[e.code]){ if(e.code==='KeyJ')lightEdge=true; if(e.code==='KeyK')specialEdge=true; if(e.code==='KeyL'||e.code==='Space')jumpEdge=true; } keys[e.code]=true; });
 addEventListener('keyup',e=>{ keys[e.code]=false; });
 function pollInput(){ let kx=(keys['KeyD']?1:0)-(keys['KeyA']?1:0), ky=(keys['KeyS']?1:0)-(keys['KeyW']?1:0);
   if(joyId!==null){ kx=joyVec.x; ky=joyVec.y; } const len=Math.hypot(kx,ky);
@@ -217,10 +183,9 @@ const player={ x:W*0.3, y:H*0.7, z:0, vz:0, vx:0, vy:0, face:1, hp:BALANCE.playe
   state:'idle', t:0, chain:0, chainWindow:0, windowed:false, iframe:0, speed:BALANCE.player.speed,
   atk:null, atkName:null, hitDone:false, airAtk:false, weapon:null, breakAfter:false, flash:0 };
 
-/* активна шкіра героя (свапабельна наживо: клавіша T / тап «АРТ») */
-let heroSkin='rick';
+/* активна шкіра героя */
+const heroSkin='rick';
 const curSkin=()=>HERO_SKINS[heroSkin];
-function toggleSkin(){ heroSkin = heroSkin==='rick' ? 'doc' : 'rick'; }
 
 /* ---------- HERO IMAGE SHEETS (використати РЕАЛЬНУ картинку як спрайт, без перемальовування) ----------
    Якщо у шкірі є imgSrc — вантажимо файл як спрайт-аркуш: ріжемо на imgFrames кадрів по горизонталі
@@ -311,7 +276,6 @@ function drawHeroFrame(sheet, fi, p, drawH, lunge, yoff, refH){
     if(p.flash>0){ ctx.globalAlpha=Math.min(1,p.flash/6); ctx.drawImage(sheet.white, bb.x,bb.y,bb.w,bb.h, dx,dy,dw,dh); } }
   ctx.restore();
 }
-function btnSkin(){ return {x:14, y:60, w:120, h:22}; }
 function inRect(px,py,r){ return px>=r.x && px<=r.x+r.w && py>=r.y && py<=r.y+r.h; }
 
 function startAttack(name){
@@ -496,7 +460,7 @@ function drawSpritePixels(spr, footX, footY, s, face, tint){
       ctx.fillStyle=col; ctx.fillRect(x0,y0,x1-x0,y1-y0); } }
 }
 function drawHero(p, isAtk){
-  const sk=curSkin(), base=sk.sprite, zz=p.z||0, by=p.y-zz;
+  const sk=curSkin(), zz=p.z||0;
   const blink = (tick%180)<30;                            // ~раз на 3 с — кадр із заплющеними очима
   const sheet=heroSheet[heroSkin];
   if(sheet){                                              // === РЕАЛЬНІ картинки як спрайт (файли користувача, без перемалювання) ===
@@ -511,23 +475,8 @@ function drawHero(p, isAtk){
     const fi=(blink && sheet.frames>1)?1:0;               // 0=відкриті очі, 1=заплющені
     drawHeroFrame(sheet, fi, p, dH, isAtk?p.face*12:0, bob); return;
   }
-  // === запасний піксель-спрайт (лише для шкір без картинок, напр. doc) ===
-  if(!base || !base.px){ drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280)); return; }   // у rick картинки — px-фолбеку нема; нічого не малюємо тілом (старт і так чекає завантаження)
-  const spr = (base.px2 && blink) ? {w:base.w,h:base.h,scale:base.scale,pal:base.pal,px:base.px2} : base;
-  const s=spr.scale||4;                                  // ЦІЛИЙ піксель-скейл: 1 піксель спрайта = s×s екранних, без дробового розтягу. Розмір героя = розмір спрайта × s
+  // картинки ще не готові/не завантажились → лише тінь (старт і так чекає завантаження)
   drawShadow(p.x, p.y, 22*(1-Math.min(zz,140)/280));
-  const px=Math.max(1,Math.round(s));                    // 1 спрайт-піксель на екрані — щоб зсуви були піксельно-чисті
-  let bob=0;                                             // узагальнена анімація (не залежить від конкретної шкіри/пікселів)
-  if(p.state==='walk')      bob=-(Math.floor(tick/5)%2)*px;       // 2-фазний крок
-  else if(p.state==='idle') bob=-(Math.floor(tick/28)%2)*px;      // повільне «дихання»
-  const lunge = isAtk ? p.face*s*1.8 : 0;                // випад уперед на ударі
-  const footX=p.x+lunge, footY=by+bob+1;
-  drawSpritePixels(spr, footX, footY, s, p.face, null);
-  if(p.flash>0){ ctx.save(); ctx.globalAlpha=Math.min(1,p.flash/6);
-    drawSpritePixels(spr, footX, footY, s, p.face, '#fff'); ctx.restore(); }
-  if(isAtk){ const reach=(p.atk&&p.atk.reach)||44, fy=footY-spr.h*s*0.5;  // кулак-випад (узагальнено, без окремого кадру)
-    const fx=p.x+p.face*reach*0.7; ctx.fillStyle=sk.accent;
-    ctx.fillRect(Math.round(p.face>0?fx:fx-s*3.2), Math.round(fy), Math.round(s*3.2), Math.round(s*2.6)); }
 }
 function drawWeaponInHand(p){
   const swinging=p.state==='attack' && p.atkName==='wpn', by=p.y-(p.z||0), w=WEAPONS[p.weapon.type];
@@ -594,9 +543,6 @@ function render(){
   // HUD
   ctx.fillStyle='#cfe9e4'; ctx.font='700 13px system-ui'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
   ctx.fillText(curSkin().name,16,24); hpBar(16,30,180,player.hp,player.hpMax,curSkin().body);
-  { const sb=btnSkin(); ctx.save(); ctx.fillStyle='rgba(255,255,255,.08)'; ctx.fillRect(sb.x,sb.y,sb.w,sb.h);
-    ctx.fillStyle=curSkin().accent; ctx.font='700 11px system-ui'; ctx.textBaseline='middle';
-    ctx.fillText('АРТ: '+curSkin().name+'  [T]', sb.x+8, sb.y+sb.h/2); ctx.restore(); ctx.textBaseline='alphabetic'; }
   if(player.weapon){ const w=WEAPONS[player.weapon.type];
     ctx.fillStyle=w.color; ctx.font='700 12px system-ui'; ctx.fillText(w.name,16,54);
     for(let i=0;i<player.weapon.uses;i++) ctx.fillRect(78+i*9,45,6,9); }
