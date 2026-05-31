@@ -82,7 +82,3 @@
   та *персонажів-перешкод* (міні-боси/нейтрали).
 - Один рівень може бути кількома вимірами/локаціями (арени всередині рівня).
 - Імена/боси — прямі з серіалу (рішення власника: використовуємо реальний R&M).
-</content>
-</invoke>
-
-There is a system reminder appended to my LEVELS.md content about Hepatitis A etc. Let me ignore — actually I need to check the file wrote correctly. There were some Cyrillic/Latin mixups: "Поncho" and "Poncho" — I wrote "Поncho" (mixed). Let me fix that to "Пончо". Also "néon" had an accent. Let me fix those typos.
