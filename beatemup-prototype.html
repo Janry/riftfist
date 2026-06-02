@@ -138,9 +138,14 @@ let lightEdge=false, specialEdge=false, jumpEdge=false;
 function btnLight(){   return {x:W-72,  y:H-80,  r:46}; }
 function btnJump(){    return {x:W-162, y:H-112, r:42}; }
 function btnSpecial(){ return {x:W-112, y:H-188, r:38}; }
+function btnWorld(){   return {x:Math.round(W/2-46), y:8, w:92, h:24}; }            // кнопка-відкрити вибір світу
+function worldRowRect(i){ const n=THEME.dimensions.length, rw=Math.min(W-50,520), rh=56, gp=14;
+  const tot=n*rh+(n-1)*gp, y0=Math.round(H*0.5-tot/2)+i*(rh+gp); return {x:Math.round(W/2-rw/2), y:y0, w:rw, h:rh}; }
 function inCircle(px,py,c){ const dx=px-c.x,dy=py-c.y; return dx*dx+dy*dy<=c.r*c.r; }
 function onTouchStart(e){ e.preventDefault();
   for(const t of e.changedTouches){ const x=t.clientX,y=t.clientY;
+    if(phase==='select'){ for(let i=0;i<THEME.dimensions.length;i++){ if(inRect(x,y,worldRowRect(i))){ pickWorld(i); break; } } continue; }
+    if(inRect(x,y,btnWorld())){ phase='select'; continue; }                          // тап «СВІТ» — меню вибору
     if(inCircle(x,y,btnSpecial())){ specialTouchId=t.identifier; specialEdge=true; continue; }
     if(inCircle(x,y,btnJump())){ jumpTouchId=t.identifier; jumpEdge=true; continue; }
     if(inCircle(x,y,btnLight())){ lightTouchId=t.identifier; lightEdge=true; continue; }
@@ -160,7 +165,10 @@ cv.addEventListener('touchmove',onTouchMove,{passive:false});
 cv.addEventListener('touchend',onTouchEnd,{passive:false});
 cv.addEventListener('touchcancel',onTouchEnd,{passive:false});
 const keys={};
-addEventListener('keydown',e=>{ if(!keys[e.code]){ if(e.code==='KeyJ')lightEdge=true; if(e.code==='KeyK')specialEdge=true; if(e.code==='KeyL'||e.code==='Space')jumpEdge=true; } keys[e.code]=true; });
+addEventListener('keydown',e=>{ if(!keys[e.code]){
+  if(phase==='select'){ const m=e.code.match(/^Digit([1-9])$/); if(m && +m[1]<=THEME.dimensions.length) pickWorld(+m[1]-1); }
+  else { if(e.code==='KeyJ')lightEdge=true; if(e.code==='KeyK')specialEdge=true; if(e.code==='KeyL'||e.code==='Space')jumpEdge=true; if(e.code==='KeyM') phase='select'; }
+ } keys[e.code]=true; });
 addEventListener('keyup',e=>{ keys[e.code]=false; });
 function pollInput(){ let kx=(keys['KeyD']?1:0)-(keys['KeyA']?1:0), ky=(keys['KeyS']?1:0)-(keys['KeyW']?1:0);
   if(joyId!==null){ kx=joyVec.x; ky=joyVec.y; } const len=Math.hypot(kx,ky);
@@ -386,6 +394,7 @@ function spawnEnemy(typeKey){ const A=ENEMIES[typeKey], f=FIELD();
     flash:0, face:1, speed:A.speedMin+Math.random()*A.speedRnd, cool:Math.random()*40 };
   enemies.push(e); return e; }
 function curDim(){ return THEME.dimensions[(dim-1)%THEME.dimensions.length]; }   // циклічний індекс виміру
+function pickWorld(i){ const n=THEME.dimensions.length; dim=((i%n)+n)%n+1; startDimension(); }   // вибір світу з меню
 function dimWaves(){ return curDim().waves || BALANCE.dimension.waves; }
 function pickEnemyType(){ const mix=curDim().mix; let tot=0; for(const m of mix) tot+=m[1]; let r=Math.random()*tot;
   for(const m of mix){ if((r-=m[1])<0) return m[0]; } return mix[0][0]; }                // зважений вибір зі складу виміру
@@ -562,7 +571,23 @@ function drawLevelBG(D){
   ctx.globalAlpha=.06; for(let i=1;i<6;i++){ const yy=f.top+i*i*4; ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(W,yy); ctx.stroke(); }
   ctx.restore();
 }
+function drawWorldSelect(){
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0d1322'); g.addColorStop(1,'#070b14');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  ctx.fillStyle='#fff'; ctx.font='800 30px system-ui'; ctx.fillText('ОБЕРИ СВІТ', W/2, worldRowRect(0).y-26);
+  for(let i=0;i<THEME.dimensions.length;i++){ const D=THEME.dimensions[i], r=worldRowRect(i), cur=((dim-1)%THEME.dimensions.length)===i;
+    ctx.fillStyle=cur?'rgba(255,255,255,.14)':'rgba(255,255,255,.06)'; ctx.fillRect(r.x,r.y,r.w,r.h);
+    ctx.fillStyle=D.neon||'#37e0ff'; ctx.fillRect(r.x,r.y,6,r.h);
+    ctx.textAlign='left'; ctx.fillStyle=D.neon||'#37e0ff'; ctx.font='800 22px system-ui'; ctx.fillText((i+1)+'', r.x+18, r.y+r.h/2+8);
+    ctx.fillStyle='#fff'; ctx.font='700 18px system-ui'; ctx.fillText(D.name, r.x+48, r.y+24);
+    ctx.fillStyle='#9aa4bf'; ctx.font='500 13px system-ui'; ctx.fillText(D.flavor, r.x+48, r.y+43); }
+  const rl=worldRowRect(THEME.dimensions.length-1);
+  ctx.textAlign='center'; ctx.fillStyle='#5b6480'; ctx.font='600 13px system-ui';
+  ctx.fillText('тап по світу · або цифри 1–'+THEME.dimensions.length, W/2, rl.y+rl.h+34);
+}
 function render(){
+  if(phase==='select'){ drawWorldSelect(); return; }
   const D=curDim();
   drawLevelBG(D);
 
@@ -626,6 +651,9 @@ function render(){
     ctx.globalAlpha=a; ctx.fillStyle=curDim().neon||'#fff'; ctx.font='800 30px system-ui'; ctx.fillText('ВПЕРЕД  →',W/2,H*0.30);
     ctx.globalAlpha=.6*a; ctx.fillStyle='#cfe9e4'; ctx.font='600 13px system-ui'; ctx.fillText('іди праворуч',W/2,H*0.30+24); ctx.restore(); }
 
+  { const b=btnWorld(); ctx.save(); ctx.fillStyle='rgba(255,255,255,.08)'; ctx.fillRect(b.x,b.y,b.w,b.h);   // кнопка «СВІТ»
+    ctx.fillStyle='#9aa4bf'; ctx.font='700 11px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('🌍 СВІТ  [M]', b.x+b.w/2, b.y+b.h/2); ctx.restore(); ctx.textBaseline='alphabetic'; }
   drawJoystick();
   drawButton(btnLight(), player.weapon?'МАХ':'УДАР', lightTouchId!==null);
   drawButton(btnJump(),'СТРИБ', jumpTouchId!==null);
@@ -635,7 +663,8 @@ function render(){
 /* ---------- ЦИКЛ ---------- */
 function frame(){
   pollInput();
-  if(hitStop>0){ hitStop--; }
+  if(phase==='select'){ /* меню вибору світу — без симуляції */ }
+  else if(hitStop>0){ hitStop--; }
   else { updateCamera(); updatePlayer(); for(const en of enemies) updateEnemy(en); updateProjectiles(); cullDead(); director();
     if(comboTimer>0){ comboTimer--; if(comboTimer===0) combo=0; }
     if(player.hp<=0){ player.hp=player.hpMax; player.x=W*0.3; player.y=H*0.7; player.z=0; player.vz=0;
@@ -651,7 +680,7 @@ function heroAssetsReady(){ const sk=HERO_SKINS[heroSkin];
   if(sk.atkSrc && heroAtk[heroSkin]===undefined) return false;
   return true; }
 function bootHero(){
-  if(heroAssetsReady() || performance.now()-_bootStart>4000){ startDimension(); requestAnimationFrame(frame); return; }
+  if(heroAssetsReady() || performance.now()-_bootStart>4000){ phase='select'; requestAnimationFrame(frame); return; }   // старт із вибору світу
   ctx.fillStyle='#0d0f17'; ctx.fillRect(0,0,W,H);
   ctx.fillStyle='#6b7390'; ctx.font='600 13px system-ui'; ctx.textAlign='center';
   ctx.fillText('Завантаження…', W/2, H/2); ctx.textAlign='left';
