@@ -41,12 +41,19 @@ const THEME = {
     ranged: { name:"SPITTER",  body:"#7fae5f", accent:"#dff0c8" },
     boss:   { name:"GROMBLE",  body:"#a83f63", accent:"#ffd2e0" }
   },
-  // виміри як дані: косметика (назва/настрій/палітра/фон) + склад ворогів. dim циклічно індексує масив.
+  // ЛЕВЕЛИ як дані (за серіями R&M; деталі — у LEVELS.md). Поки грабельні наявним движком:
+  // косметика (назва/опис/палітра/неон) + склад ворогів (архетипи) + ім'я боса. dim індексує масив.
   dimensions: [
-    { name:"НЕОНОВІ КАНАЛИ", flavor:"мокрий бетон і дешеве світло", bg:["#161a2b","#0d1322"], floor:"rgba(120,200,255,.05)", neon:"#37e0ff", waves:3, mix:[['grunt',3],['rusher',2]] },
-    { name:"ЖЕЛЕ-СЕКТОР",    flavor:"тут усе трохи липке",          bg:["#291634","#150b1d"], floor:"rgba(255,150,220,.06)", neon:"#ff67c0", waves:3, mix:[['grunt',2],['brute',2],['rusher',1]] },
-    { name:"СЕРВЕРНЕ ПЕКЛО",  flavor:"гул кулерів і чиста ненависть", bg:["#102220","#07120e"], floor:"rgba(120,255,200,.05)", neon:"#5dffb0", waves:4, mix:[['rusher',2],['ranged',2],['grunt',2]] },
-    { name:"ІРЖАВИЙ ПОЯС",    flavor:"метал, пил, нічого живого",    bg:["#241a12","#130c07"], floor:"rgba(255,200,120,.05)", neon:"#ffb24a", waves:3, mix:[['brute',2],['grunt',2],['ranged',1]] }
+    { name:"ЗА НАСІННЯМ",          flavor:"S1E1 · розбита тарілка, чужий вимір",   bg:["#152a1e","#0a160f"], floor:"rgba(120,255,180,.05)", neon:"#5dff9e", waves:3, mix:[['grunt',3],['rusher',2]],            boss:"СТРАЖ МЕГА-ДЕРЕВ" },
+    { name:"СОН ГОЛДЕНФОЛДА",      flavor:"S1E2 · кошмар-інцепція",               bg:["#2a0f14","#160709"], floor:"rgba(255,90,90,.06)",   neon:"#ff5a5a", waves:3, mix:[['rusher',3],['grunt',2]],            boss:"ЛЯКЛИВИЙ ТЕРРІ" },
+    { name:"АНАТОМІЧНИЙ ПАРК",     flavor:"S1E3 · усередині тіла",                bg:["#2a1320","#160a11"], floor:"rgba(255,120,180,.06)", neon:"#ff79c6", waves:3, mix:[['grunt',2],['ranged',2],['rusher',1]], boss:"ГЕПАТИТ А" },
+    { name:"СИМУЛЯЦІЯ ЗАЙҐЕРІАНІВ",flavor:"S1E4 · фейкова реальність, що глічить",bg:["#231f0d","#120f06"], floor:"rgba(120,255,140,.05)", neon:"#aef25a", waves:3, mix:[['rusher',2],['grunt',3]],            boss:"ПРИНЦ НЕБУЛОН" },
+    { name:"MEESEEKS AND DESTROY", flavor:"S1E5 · стебло, велетні, суд",          bg:["#101a2e","#0a1120"], floor:"rgba(120,200,255,.05)", neon:"#5db8ff", waves:3, mix:[['brute',2],['rusher',2],['grunt',1]], boss:"ВЕЛЕТЕНЬ" },
+    { name:"RAISING GAZORPAZORP",  flavor:"S1E7 · пустка самців vs хай-тек",       bg:["#2a1a0d","#160d06"], floor:"rgba(255,180,90,.05)",  neon:"#ffaa3c", waves:3, mix:[['brute',2],['grunt',2],['ranged',1]], boss:"ВОЖАК ҐАЗОРПІАНЦІВ" },
+    { name:"CLOSE RICK-COUNTERS",  flavor:"S1E10 · Цитадель, Рада Ріків",          bg:["#141a2e","#0a0e1c"], floor:"rgba(150,140,255,.06)", neon:"#9a8cff", waves:4, mix:[['grunt',2],['ranged',2],['rusher',2]], boss:"ЗЛИЙ РІК" },
+    { name:"MORTYNIGHT RUN",       flavor:"S2E2 · втеча, аркада, Fart",            bg:["#0e1226","#070a18"], floor:"rgba(120,220,255,.05)", neon:"#46e0d8", waves:3, mix:[['ranged',3],['rusher',2]],          boss:"КОМАНДИР ФЕДЕРАЦІЇ" },
+    { name:"THE RICKS MUST BE CRAZY",flavor:"S2E6 · вкладені всесвіти; лижі-втеча", bg:["#13251f","#0a1410"], floor:"rgba(150,255,170,.05)", neon:"#74ffa6", waves:3, mix:[['grunt',2],['brute',2],['rusher',1]], boss:"ЗІП КСАНФЛОРП" },
+    { name:"BIG TROUBLE / SANCHEZ",flavor:"S2E7 · Tiny Rick + вампір",             bg:["#23102a","#120816"], floor:"rgba(220,120,255,.06)", neon:"#d36bff", waves:3, mix:[['rusher',3],['grunt',2]],            boss:"COACH FERATU" }
   ]
 };
 
@@ -138,9 +145,12 @@ let lightEdge=false, specialEdge=false, jumpEdge=false;
 function btnLight(){   return {x:W-72,  y:H-80,  r:46}; }
 function btnJump(){    return {x:W-162, y:H-112, r:42}; }
 function btnSpecial(){ return {x:W-112, y:H-188, r:38}; }
-function btnWorld(){   return {x:Math.round(W/2-46), y:8, w:92, h:24}; }            // кнопка-відкрити вибір світу
-function worldRowRect(i){ const n=THEME.dimensions.length, rw=Math.min(W-50,520), rh=56, gp=14;
-  const tot=n*rh+(n-1)*gp, y0=Math.round(H*0.5-tot/2)+i*(rh+gp); return {x:Math.round(W/2-rw/2), y:y0, w:rw, h:rh}; }
+function btnWorld(){   return {x:Math.round(W/2-50), y:8, w:100, h:24}; }           // кнопка-відкрити вибір левела
+function worldRowRect(i){ const n=THEME.dimensions.length, cols=(n>6?2:1), rows=Math.ceil(n/cols);   // адаптивна сітка комірок
+  const padX=22, gx=12, gy=10, topY=Math.round(H*0.17), botY=Math.round(H*0.93);
+  const cw=Math.floor((W-padX*2-gx*(cols-1))/cols), ch=Math.min(72, Math.floor((botY-topY-gy*(rows-1))/rows));
+  const c=i%cols, r=Math.floor(i/cols);
+  return {x:padX+c*(cw+gx), y:topY+r*(ch+gy), w:cw, h:ch}; }
 function inCircle(px,py,c){ const dx=px-c.x,dy=py-c.y; return dx*dx+dy*dy<=c.r*c.r; }
 function onTouchStart(e){ e.preventDefault();
   for(const t of e.changedTouches){ const x=t.clientX,y=t.clientY;
@@ -166,7 +176,7 @@ cv.addEventListener('touchend',onTouchEnd,{passive:false});
 cv.addEventListener('touchcancel',onTouchEnd,{passive:false});
 const keys={};
 addEventListener('keydown',e=>{ if(!keys[e.code]){
-  if(phase==='select'){ const m=e.code.match(/^Digit([1-9])$/); if(m && +m[1]<=THEME.dimensions.length) pickWorld(+m[1]-1); }
+  if(phase==='select'){ const m=e.code.match(/^Digit([0-9])$/); if(m){ const i=(+m[1]===0?10:+m[1])-1; if(i<THEME.dimensions.length) pickWorld(i); } }
   else { if(e.code==='KeyJ')lightEdge=true; if(e.code==='KeyK')specialEdge=true; if(e.code==='KeyL'||e.code==='Space')jumpEdge=true; if(e.code==='KeyM') phase='select'; }
  } keys[e.code]=true; });
 addEventListener('keyup',e=>{ keys[e.code]=false; });
@@ -575,16 +585,16 @@ function drawWorldSelect(){
   const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0d1322'); g.addColorStop(1,'#070b14');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   ctx.textAlign='center'; ctx.textBaseline='alphabetic';
-  ctx.fillStyle='#fff'; ctx.font='800 30px system-ui'; ctx.fillText('ОБЕРИ СВІТ', W/2, worldRowRect(0).y-26);
+  ctx.fillStyle='#fff'; ctx.font='800 26px system-ui'; ctx.fillText('ОБЕРИ ЛЕВЕЛ', W/2, Math.round(H*0.17)-16);
   for(let i=0;i<THEME.dimensions.length;i++){ const D=THEME.dimensions[i], r=worldRowRect(i), cur=((dim-1)%THEME.dimensions.length)===i;
-    ctx.fillStyle=cur?'rgba(255,255,255,.14)':'rgba(255,255,255,.06)'; ctx.fillRect(r.x,r.y,r.w,r.h);
-    ctx.fillStyle=D.neon||'#37e0ff'; ctx.fillRect(r.x,r.y,6,r.h);
-    ctx.textAlign='left'; ctx.fillStyle=D.neon||'#37e0ff'; ctx.font='800 22px system-ui'; ctx.fillText((i+1)+'', r.x+18, r.y+r.h/2+8);
-    ctx.fillStyle='#fff'; ctx.font='700 18px system-ui'; ctx.fillText(D.name, r.x+48, r.y+24);
-    ctx.fillStyle='#9aa4bf'; ctx.font='500 13px system-ui'; ctx.fillText(D.flavor, r.x+48, r.y+43); }
-  const rl=worldRowRect(THEME.dimensions.length-1);
-  ctx.textAlign='center'; ctx.fillStyle='#5b6480'; ctx.font='600 13px system-ui';
-  ctx.fillText('тап по світу · або цифри 1–'+THEME.dimensions.length, W/2, rl.y+rl.h+34);
+    ctx.fillStyle=cur?'rgba(255,255,255,.16)':'rgba(255,255,255,.06)'; ctx.fillRect(r.x,r.y,r.w,r.h);
+    ctx.fillStyle=D.neon||'#37e0ff'; ctx.fillRect(r.x,r.y,5,r.h);
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillStyle=D.neon||'#37e0ff'; ctx.font='800 16px system-ui'; ctx.fillText((i+1)+'', r.x+14, r.y+r.h/2);
+    ctx.fillStyle='#fff'; ctx.font='700 14px system-ui'; ctx.fillText(D.name, r.x+34, r.y+r.h/2-7);
+    ctx.fillStyle='#8b95b3'; ctx.font='500 11px system-ui'; ctx.fillText(D.flavor, r.x+34, r.y+r.h/2+9); }
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic'; ctx.fillStyle='#5b6480'; ctx.font='600 12px system-ui';
+  ctx.fillText('тап по левелу · або цифри 1–'+THEME.dimensions.length, W/2, Math.round(H*0.93)+18);
 }
 function render(){
   if(phase==='select'){ drawWorldSelect(); return; }
@@ -627,11 +637,11 @@ function render(){
   else { ctx.fillStyle='#5b6480'; ctx.font='600 11px system-ui'; ctx.fillText('без зброї',16,53); }
   ctx.textAlign='right'; ctx.fillStyle='#9aa4bf'; ctx.font='700 13px system-ui';
   const _nw=dimWaves(), _st = phase==='intro'?'готуйся' : phase==='cleared'?'зачищено' : phase==='advance'?'вперед →' : dimWave>=_nw+2?'БОС' : dimWave>=_nw+1?'міні-бос' : 'хвиля '+dimWave+'/'+_nw;
-  ctx.fillText('ВИМІР '+dim+' · '+_st, W-16, 24);
+  ctx.fillText('ЛЕВЕЛ '+dim+' · '+_st, W-16, 24);
 
   const boss=enemies.find(e=>e.boss && !e.dead);
   if(boss){ ctx.textAlign='center'; ctx.fillStyle=THEME.enemies.boss.accent; ctx.font='700 12px system-ui';
-    ctx.fillText('БОС — '+THEME.enemies.boss.name, W/2, 52); hpBar(W/2-120,58,240,boss.hp,boss.hpMax,THEME.enemies.boss.body); }
+    ctx.fillText('БОС — '+(curDim().boss||THEME.enemies.boss.name), W/2, 52); hpBar(W/2-120,58,240,boss.hp,boss.hpMax,THEME.enemies.boss.body); }
   const mini=enemies.find(e=>e.mini && !e.dead);
   if(mini){ ctx.textAlign='center'; ctx.fillStyle=THEME.enemies.brute.accent; ctx.font='700 11px system-ui';
     ctx.fillText('МІНІ-БОС — '+THEME.enemies.brute.name, W/2, 52); hpBar(W/2-90,58,180,mini.hp,mini.hpMax,THEME.enemies.brute.body); }
@@ -641,11 +651,11 @@ function render(){
     ctx.fillStyle='#fff'; ctx.globalAlpha=Math.min(1,comboTimer/30); ctx.fillText(combo+' HIT',W/2,H*0.32); ctx.restore(); }
 
   if(phase==='intro'){ const D=curDim(); ctx.save(); ctx.textAlign='center'; ctx.globalAlpha=Math.min(1,phaseT/24);
-    ctx.fillStyle='#7f8aa8'; ctx.font='700 13px system-ui'; ctx.fillText('ВИМІР '+dim,W/2,H*0.40-34);
+    ctx.fillStyle='#7f8aa8'; ctx.font='700 13px system-ui'; ctx.fillText('ЛЕВЕЛ '+dim,W/2,H*0.40-34);
     ctx.fillStyle='#fff'; ctx.font='800 38px system-ui'; ctx.fillText(D.name,W/2,H*0.40);
     ctx.fillStyle='#9aa4bf'; ctx.font='600 15px system-ui'; ctx.fillText(D.flavor,W/2,H*0.40+28); ctx.restore(); }
   if(phase==='cleared'){ ctx.save(); ctx.textAlign='center'; ctx.globalAlpha=Math.min(1,phaseT/24);
-    ctx.fillStyle='#bff7ef'; ctx.font='800 34px system-ui'; ctx.fillText('ВИМІР ЗАЧИЩЕНО',W/2,H*0.40);
+    ctx.fillStyle='#bff7ef'; ctx.font='800 34px system-ui'; ctx.fillText('ЛЕВЕЛ ЗАЧИЩЕНО',W/2,H*0.40);
     ctx.fillStyle='#9aa4bf'; ctx.font='600 14px system-ui'; ctx.fillText('наступний портал…',W/2,H*0.40+28); ctx.restore(); }
   if(phase==='advance'){ ctx.save(); ctx.textAlign='center'; const a=0.55+0.45*Math.sin(tick*0.18);
     ctx.globalAlpha=a; ctx.fillStyle=curDim().neon||'#fff'; ctx.font='800 30px system-ui'; ctx.fillText('ВПЕРЕД  →',W/2,H*0.30);
@@ -653,7 +663,7 @@ function render(){
 
   { const b=btnWorld(); ctx.save(); ctx.fillStyle='rgba(255,255,255,.08)'; ctx.fillRect(b.x,b.y,b.w,b.h);   // кнопка «СВІТ»
     ctx.fillStyle='#9aa4bf'; ctx.font='700 11px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('🌍 СВІТ  [M]', b.x+b.w/2, b.y+b.h/2); ctx.restore(); ctx.textBaseline='alphabetic'; }
+    ctx.fillText('☰ ЛЕВЕЛ  [M]', b.x+b.w/2, b.y+b.h/2); ctx.restore(); ctx.textBaseline='alphabetic'; }
   drawJoystick();
   drawButton(btnLight(), player.weapon?'МАХ':'УДАР', lightTouchId!==null);
   drawButton(btnJump(),'СТРИБ', jumpTouchId!==null);
